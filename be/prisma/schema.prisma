@@ -1,11 +1,32 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
+
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum QuestType {
+  DAILY
+  WEEKLY
+  PERMANENT
+}
+
+enum AspectType {
+  FITNESS
+  DESCIPLINE
+  CAREER
+  INTELLECT
+  SOCIAL
+}
+
+enum QuestStatusType {
+  ACTIVE
+  COMPLETED
+  FAILED
+  EXPIRED
 }
 
 model users {
@@ -22,4 +43,33 @@ model users {
   streak_days    Int?      @default(0)
   created_at     DateTime? @default(now()) @db.Timestamp(6)
   updated_at     DateTime? @default(now()) @db.Timestamp(6)
+
+  user_quests user_quests[]
+}
+
+model quests {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String
+  type        QuestType
+  aspect      AspectType
+  rank        String
+  xp_reward   Int
+  is_active   Boolean       @default(true)
+  userQuests  user_quests[]
+
+  @@unique([title, aspect])
+}
+
+model user_quests {
+  id           Int             @id @default(autoincrement())
+  user_id      Int
+  quest_id     Int
+  status       QuestStatusType @default(ACTIVE)
+  assigned_at  DateTime        @default(now())
+  completed_at DateTime?
+  expires_at   DateTime?
+
+  user  users  @relation(fields: [user_id], references: [id])
+  quest quests @relation(fields: [quest_id], references: [id])
 }
