@@ -1,0 +1,317 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-orbitron: var(--font-orbitron);
+}
+
+:root {
+  --sl-bg: #05050e;
+  --sl-surface: #0a0b18;
+  --sl-surface-2: #0f1022;
+  --sl-border: #1a1f3a;
+  --sl-border-bright: #2a3060;
+  --sl-cyan: #00d4ff;
+  --sl-cyan-dim: #0ea5e9;
+  --sl-cyan-muted: rgba(0, 212, 255, 0.08);
+  --sl-purple: #7b2fff;
+  --sl-text: #e2e8f0;
+  --sl-text-muted: #64748b;
+  --sl-text-dim: #475569;
+
+  /* Rank colors */
+  --rank-e: #9ca3af;
+  --rank-d: #34d399;
+  --rank-c: #60a5fa;
+  --rank-b: #c084fc;
+  --rank-a: #fbbf24;
+  --rank-s: #f87171;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--sl-bg);
+  color: var(--sl-text);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--sl-surface); }
+::-webkit-scrollbar-thumb { background: var(--sl-border-bright); border-radius: 2px; }
+
+/* ── Animations ── */
+@keyframes xp-fill {
+  from { width: 0%; }
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-scale {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes level-up {
+  0%   { opacity: 0; transform: scale(0.5) translateY(30px); }
+  50%  { transform: scale(1.08) translateY(-5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,212,255,0.25); }
+  50%       { box-shadow: 0 0 22px rgba(0,212,255,0.55); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Base components ── */
+.sl-card {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.5rem;
+}
+
+.sl-card-glow {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border-bright);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.sl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.375rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 1px solid transparent;
+}
+
+.sl-btn-primary {
+  background: rgba(0, 212, 255, 0.06);
+  border-color: var(--sl-cyan);
+  color: var(--sl-cyan);
+}
+.sl-btn-primary:hover {
+  background: rgba(0, 212, 255, 0.14);
+  box-shadow: 0 0 16px rgba(0,212,255,0.35);
+}
+.sl-btn-primary:active { background: rgba(0,212,255,0.22); }
+.sl-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.sl-btn-ghost {
+  background: transparent;
+  border-color: var(--sl-border-bright);
+  color: var(--sl-text-muted);
+}
+.sl-btn-ghost:hover {
+  border-color: var(--sl-cyan);
+  color: var(--sl-cyan);
+  background: var(--sl-cyan-muted);
+}
+
+.sl-btn-danger {
+  background: rgba(248,113,113,0.06);
+  border-color: #f87171;
+  color: #f87171;
+}
+.sl-btn-danger:hover {
+  background: rgba(248,113,113,0.14);
+  box-shadow: 0 0 14px rgba(248,113,113,0.3);
+}
+
+.sl-input {
+  width: 100%;
+  background: var(--sl-surface-2);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.375rem;
+  color: var(--sl-text);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  outline: none;
+}
+.sl-input:focus {
+  border-color: var(--sl-cyan);
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.12);
+}
+.sl-input::placeholder { color: var(--sl-text-dim); }
+
+/* ── XP bar ── */
+.xp-bar-track {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--sl-border);
+  border-radius: 999px;
+  overflow: hidden;
+  height: 8px;
+}
+
+.xp-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  animation: xp-fill 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  background: linear-gradient(90deg, #0ea5e9, #00d4ff, #67e8f9);
+  box-shadow: 0 0 10px rgba(0,212,255,0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.xp-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite 1.2s;
+}
+
+/* ── Rank utilities ── */
+.rank-e { color: var(--rank-e); }
+.rank-d { color: var(--rank-d); }
+.rank-c { color: var(--rank-c); }
+.rank-b { color: var(--rank-b); }
+.rank-a { color: var(--rank-a); }
+.rank-s { color: var(--rank-s); }
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-orbitron), var(--font-geist-mono), monospace;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* ── Aspect utilities ── */
+.aspect-fitness    { color: #f87171; }
+.aspect-descipline { color: #a78bfa; }
+.aspect-career     { color: #34d399; }
+.aspect-intellect  { color: #60a5fa; }
+.aspect-social     { color: #fbbf24; }
+
+/* ── Quest card ── */
+.quest-card {
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-border);
+  border-radius: 0.5rem;
+  position: relative;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  overflow: hidden;
+}
+
+.quest-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--accent-color, var(--sl-cyan));
+  opacity: 0.8;
+}
+
+.quest-card:hover {
+  border-color: var(--sl-border-bright);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+/* ── System header line ── */
+.system-header {
+  font-family: var(--font-orbitron), var(--font-geist-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--sl-cyan);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* ── Nav item ── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.875rem;
+  border-radius: 0.375rem;
+  color: var(--sl-text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.nav-item:hover {
+  color: var(--sl-text);
+  background: rgba(255,255,255,0.03);
+}
+
+.nav-item.active {
+  color: var(--sl-cyan);
+  background: rgba(0,212,255,0.07);
+  border-color: rgba(0,212,255,0.2);
+}
+
+/* ── Glow animation class ── */
+.pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+.float-in {
+  animation: float-in 0.3s ease-out forwards;
+}
+
+.fade-scale {
+  animation: fade-scale 0.25s ease-out forwards;
+}
+
+/* ── Overlay ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Toast ── */
+.toast {
+  animation: toast-in 0.3s ease-out forwards;
+  background: var(--sl-surface-2);
+  border: 1px solid var(--sl-border-bright);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), 0 0 16px rgba(0,212,255,0.15);
+}
