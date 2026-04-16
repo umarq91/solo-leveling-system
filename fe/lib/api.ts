@@ -44,6 +44,7 @@ export const api = {
   },
   users: {
     stats: () => request<StatsResponse>("/users/stats"),
+    heatmap: (days = 90) => request<HeatmapResponse>(`/users/heatmap?days=${days}`),
   },
   quests: {
     active: () => request<{ quests: UserQuest[] }>("/quests"),
@@ -108,6 +109,22 @@ export interface StatsResponse {
   active_quests: number;
   completed_total: number;
   completed_by_aspect: Partial<Record<Aspect, number>>;
+}
+
+export interface HeatmapDay {
+  date: string; // YYYY-MM-DD
+  count: number;
+  xp: number;
+}
+
+export interface HeatmapResponse {
+  days: number;
+  data: HeatmapDay[];
+  totals: {
+    completed: number;
+    xp: number;
+    active_days: number;
+  };
 }
 
 export interface CompleteQuestResponse {

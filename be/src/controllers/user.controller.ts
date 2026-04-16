@@ -17,3 +17,14 @@ export async function getStats(req: Request, res: Response) {
     return handleError(res, error);
   }
 }
+
+export async function getHeatmap(req: Request, res: Response) {
+  try {
+    const raw = Number(req.query.days);
+    const days = Number.isFinite(raw) ? Math.min(365, Math.max(7, Math.floor(raw))) : 90;
+    const heatmap = await userService.getActivityHeatmap(req.user.id, days);
+    return res.json(heatmap);
+  } catch (error) {
+    return handleError(res, error);
+  }
+}

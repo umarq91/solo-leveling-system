@@ -2,23 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { api, StatsResponse, ASPECT_LABELS, ASPECT_COLORS, RANK_COLORS, Aspect } from "@/lib/api";
+import { api, StatsResponse, HeatmapResponse, ASPECT_LABELS, ASPECT_COLORS, RANK_COLORS, Aspect } from "@/lib/api";
 import XpBar from "@/components/xp-bar";
 import RankBadge from "@/components/rank-badge";
-import { Flame, Zap, Shield, CheckCircle, TrendingUp, Activity } from "lucide-react";
+import ActivityHeatmap from "@/components/activity-heatmap";
+import { Flame, Zap, Shield, CheckCircle, TrendingUp, Activity, CalendarDays } from "lucide-react";
 
 const ASPECTS: Aspect[] = ["FITNESS", "DESCIPLINE", "CAREER", "INTELLECT", "SOCIAL"];
 
 export default function DashboardPage() {
   const { user, refreshUser } = useAuth();
   const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [heatmap, setHeatmap] = useState<HeatmapResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const s = await api.users.stats();
+        const [s, h] = await Promise.all([api.users.stats(), api.users.heatmap(90)]);
         setStats(s);
+        setHeatmap(h);
       } catch {
         // ignore
       } finally {
@@ -151,6 +154,39 @@ export default function DashboardPage() {
             loading={loading}
           />
         </div>
+      </div>
+
+      {/* Activity heatmap */}
+      <div
+        className="p-6 rounded-lg mb-6"
+        style={{ background: "var(--sl-surface)", border: "1px solid var(--sl-border)" }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={16} style={{ color: "var(--sl-cyan)" }} />
+            <div className="system-header">ACTIVITY · LAST 90 DAYS</div>
+          </div>
+          {heatmap && (
+            <div className="flex items-center gap-4 text-xs font-mono" style={{ color: "var(--sl-text-muted)" }}>
+              <span>
+                <span style={{ color: "var(--sl-cyan)" }}>{heatmap.totals.active_days}</span> active days
+              </span>
+              <span>
+                <span style={{ color: "#fbbf24" }}>{heatmap.totals.completed}</span> completed
+              </span>
+            </div>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="h-24 rounded animate-pulse" style={{ background: "var(--sl-surface-2)" }} />
+        ) : heatmap ? (
+          <ActivityHeatmap data={heatmap.data} />
+        ) : (
+          <div className="text-xs font-mono py-4" style={{ color: "var(--sl-text-dim)" }}>
+            No activity data yet.
+          </div>
+        )}
       </div>
 
       {/* Aspect breakdown */}
