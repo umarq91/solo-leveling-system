@@ -5,7 +5,14 @@ import { useAuth } from "@/lib/auth-context";
 import { api, UserQuest, CompleteQuestResponse, QuestType } from "@/lib/api";
 import QuestCard from "@/components/quest-card";
 import LevelUpModal from "@/components/level-up-modal";
+import CountdownTimer from "@/components/countdown-timer";
 import { Swords, RefreshCw, Clock, Infinity, Calendar } from "lucide-react";
+
+function endOfTodayIso(): string {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return end.toISOString();
+}
 
 type Tab = "active" | "history";
 const QUEST_TYPES: { type: QuestType; label: string; icon: React.ReactNode }[] = [
@@ -15,7 +22,7 @@ const QUEST_TYPES: { type: QuestType; label: string; icon: React.ReactNode }[] =
 ];
 
 export default function QuestsPage() {
-  const { updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [tab, setTab] = useState<Tab>("active");
   const [activeQuests, setActiveQuests] = useState<UserQuest[]>([]);
@@ -133,6 +140,19 @@ export default function QuestsPage() {
           Refresh
         </button>
       </div>
+
+      {/* Daily reset countdown — only show while the user has live dailies. */}
+      {hasDailyQuests && (
+        <div className="mb-4">
+          <CountdownTimer
+            expiresAt={endOfTodayIso()}
+            variant="banner"
+            label="Daily Reset"
+            windowMs={24 * 60 * 60 * 1000}
+            streakDays={user?.streak_days ?? 0}
+          />
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

@@ -1,9 +1,10 @@
 "use client";
 
-import { UserQuest, ASPECT_COLORS, RANK_COLORS, timeUntil } from "@/lib/api";
+import { UserQuest, ASPECT_COLORS } from "@/lib/api";
 import AspectBadge from "./aspect-badge";
 import RankBadge from "./rank-badge";
-import { Zap, Clock, CheckCircle, XCircle, Timer } from "lucide-react";
+import CountdownTimer, { useCountdown } from "./countdown-timer";
+import { Zap, CheckCircle, XCircle, Timer } from "lucide-react";
 
 interface Props {
   userQuest: UserQuest;
@@ -22,11 +23,19 @@ export default function QuestCard({ userQuest, onComplete, completing }: Props) 
   const { quest, status, expires_at } = userQuest;
   const accentColor = ASPECT_COLORS[quest.aspect];
   const statusCfg = STATUS_CONFIG[status];
+  const { tone, totalMs } = useCountdown(status === "ACTIVE" ? expires_at : null);
+  const isUrgent = status === "ACTIVE" && tone === "urgent" && totalMs > 0;
+  const URGENT_RED = "#f87171";
 
   return (
     <div
       className="quest-card p-4 pl-6"
-      style={{ "--accent-color": accentColor } as React.CSSProperties}
+      style={{
+        "--accent-color": isUrgent ? URGENT_RED : accentColor,
+        borderColor: isUrgent ? `${URGENT_RED}66` : undefined,
+        boxShadow: isUrgent ? `0 0 22px ${URGENT_RED}33` : undefined,
+        animation: isUrgent ? "urgent-pulse 1.6s ease-in-out infinite" : undefined,
+      } as React.CSSProperties}
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -55,10 +64,7 @@ export default function QuestCard({ userQuest, onComplete, completing }: Props) 
           {quest.type}
         </span>
         {expires_at && status === "ACTIVE" && (
-          <span className="inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded" style={{ color: "#fbbf24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
-            <Clock size={10} />
-            {timeUntil(expires_at)}
-          </span>
+          <CountdownTimer expiresAt={expires_at} />
         )}
       </div>
 
