@@ -2,796 +2,1027 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import {
-  Swords,
-  Trophy,
-  Flame,
-  Zap,
-  ChevronDown,
-  ArrowRight,
-  Skull,
-  Crown,
-  Activity,
-  Calendar,
-  Infinity as InfinityIcon,
-  Target,
-  TrendingUp,
-  Shield,
-} from "lucide-react";
-
-function InstagramIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}
-
+import { Swords, Trophy, Zap, Activity, Calendar, Infinity as InfinityIcon, Flame } from "lucide-react";
+import type HlsType from "hls.js";
 import { getToken } from "@/lib/api";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-const RANKS = [
-  { letter: "E", color: "#9ca3af", title: "The Weakest", desc: "You start here. Trash mob, dungeon fodder." },
-  { letter: "D", color: "#34d399", title: "Awakening", desc: "First taste of growth. Habits are forming." },
-  { letter: "C", color: "#60a5fa", title: "Hunter", desc: "Consistent. Disciplined. Outpacing your past self." },
-  { letter: "B", color: "#c084fc", title: "Veteran", desc: "Most never reach this. You operate on autopilot." },
-  { letter: "A", color: "#fbbf24", title: "Elite", desc: "Top fraction of a percent. Mastery is the floor." },
-  { letter: "S", color: "#f87171", title: "Monarch", desc: "The system answers to you now. Final form." },
-];
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const HLS_SRC = "https://stream.mux.com/Aa02T7oM1wH5Mk5EEVDYhbZ1ChcdhRsS2m1NYyx4Ua1g.m3u8";
+const HERO_ROLES = ["Hunter", "Warrior", "Champion", "Monarch"];
+const LOADING_WORDS = ["Arise", "Hunt", "Ascend", "Grind"];
 
 const QUESTS = [
   {
-    type: "Daily",
     icon: Calendar,
     color: "#00d4ff",
+    label: "Daily",
     title: "Daily Quests",
-    desc: "5 system-assigned tasks every dawn. Complete or face the penalty.",
+    desc: "5 system-assigned tasks every dawn. Complete or face the penalty zone.",
     examples: ["Run 5km", "Read 30 pages", "Meditate 10 min"],
+    xp: "500",
+    difficulty: "D",
+    diffColor: "var(--rank-d)",
   },
   {
-    type: "Weekly",
     icon: Activity,
     color: "#a78bfa",
+    label: "Weekly",
     title: "Weekly Raids",
     desc: "Multi-stage challenges with tiered XP. The grind that builds rank.",
-    examples: ["Train 5x this week", "Ship a project", "100 push-ups daily"],
+    examples: ["Train 5× this week", "Ship a project", "100 push-ups daily"],
+    xp: "2,500",
+    difficulty: "B",
+    diffColor: "var(--rank-b)",
   },
   {
-    type: "Permanent",
     icon: InfinityIcon,
     color: "#fbbf24",
+    label: "Permanent",
     title: "Permanent Quests",
-    desc: "Your boss fights. Massive XP, no time limit, life-altering.",
+    desc: "Your boss fights. Massive XP, no time limit, life-altering milestones.",
     examples: ["Read 24 books", "Run a marathon", "Launch your business"],
+    xp: "∞",
+    difficulty: "S",
+    diffColor: "var(--rank-s)",
   },
 ];
 
-/* ──────────────────────────────────────────────────────────────────────────
-   SHARED — Rank dot cluster (6 ranks arranged like Gamify's colored grid)
-   ────────────────────────────────────────────────────────────────────────── */
+const FEATURES = [
+  {
+    title: "Quest System",
+    desc: "Daily, weekly, and permanent quests assigned at dawn. Complete or face the penalty zone.",
+    image: "/sl/hero.jpg",
+    tag: "01 — Quests",
+    span: "md:col-span-7",
+    accent: "#00d4ff",
+  },
+  {
+    title: "The Gate Opens",
+    desc: "Enter ranked gates. Defeat your weaknesses. Claim your XP.",
+    image: "/sl/gate.jpg",
+    tag: "02 — Gates",
+    span: "md:col-span-5",
+    accent: "#7b2fff",
+  },
+  {
+    title: "Rank Progression",
+    desc: "Climb E to S. Every level-up is permanent, earned, irreversible.",
+    image: "/sl/rank-up.png",
+    tag: "03 — Ranks",
+    span: "md:col-span-5",
+    accent: "#c084fc",
+  },
+  {
+    title: "Shadow Army",
+    desc: "Built in public. A growing legion transforming their real lives.",
+    image: "/sl/shadow-army.jpg",
+    tag: "04 — Community",
+    span: "md:col-span-7",
+    accent: "#f87171",
+  },
+];
 
-function RankDotsGlyph({ size = 56, delay = 0 }: { size?: number; delay?: number }) {
-  const cell = size / 3;
-  const dots = [
-    { x: 1, y: 0, color: "#34d399" },
-    { x: 2, y: 0, color: "#fbbf24" },
-    { x: 0, y: 1, color: "#f87171" },
-    { x: 1, y: 1, color: "#c084fc" },
-    { x: 2, y: 1, color: "#60a5fa" },
-    { x: 0, y: 2, color: "#00d4ff" },
-    { x: 1, y: 2, color: "#7b2fff" },
-  ];
+const HUNTER_LOGS = [
+  { image: "/sl/hero.jpg", title: "System Awakening", desc: "The moment E-Rank changes. First quest assigned.", meta: "Day 1", xp: "+500", rank: "E", rankColor: "var(--rank-e)" },
+  { image: "/sl/gate.jpg", title: "First Gate Cleared", desc: "Solo run. B-Rank dungeon. No casualties.", meta: "Day 7", xp: "+1,200", rank: "D", rankColor: "var(--rank-d)" },
+  { image: "/sl/rank-up.png", title: "Rank B — Veteran", desc: "Discipline streak: 30 days unbroken.", meta: "Day 30", xp: "+5,000", rank: "B", rankColor: "var(--rank-b)" },
+  { image: "/sl/shadow-army.jpg", title: "Shadow Army: 7K", desc: "Built in public. The legion watches.", meta: "Day 90", xp: "+∞", rank: "S", rankColor: "var(--rank-s)" },
+];
+
+// ─── Display font shorthand ───────────────────────────────────────────────────
+
+const DF = "var(--font-instrument)";
+const IF = "var(--font-inter)";
+const OF = "var(--font-orbitron)";
+
+// ─── Loading Screen ───────────────────────────────────────────────────────────
+
+function LoadingScreen({ onComplete }: { onComplete: () => void }) {
+  const [count, setCount] = useState(0);
+  const [wordIndex, setWordIndex] = useState(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  useEffect(() => {
+    let start: number | null = null;
+    const duration = 2700;
+    let raf: number;
+    function step(ts: number) {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      setCount(Math.floor(progress * 100));
+      if (progress < 1) raf = requestAnimationFrame(step);
+      else setTimeout(() => onCompleteRef.current(), 400);
+    }
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  useEffect(() => {
+    const iv = setInterval(() => setWordIndex(i => (i + 1) % LOADING_WORDS.length), 900);
+    return () => clearInterval(iv);
+  }, []);
+
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      {dots.map((d, i) => (
-        <motion.span
-          key={i}
-          initial={{ scale: 0, opacity: 0 }}
-          whileInView={{ scale: 1, opacity: 1 }}
-          viewport={{ once: true, margin: "0px 0px -60px 0px" }}
-          transition={{ delay: delay + i * 0.05, duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
-          className="absolute rounded-full"
-          style={{
-            width: cell,
-            height: cell,
-            left: d.x * cell,
-            top: d.y * cell,
-            background: d.color,
-            boxShadow: `0 0 ${cell * 0.5}px ${d.color}80`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   SHARED — Phone mockup showing a sample System dashboard
-   ────────────────────────────────────────────────────────────────────────── */
-
-function PhoneMockup() {
-  return (
-    <div
-      className="relative mx-auto"
-      style={{
-        width: 300,
-        height: 620,
-        borderRadius: 44,
-        padding: 10,
-        background: "linear-gradient(145deg, #1a1f3a, #05050e)",
-        boxShadow:
-          "0 40px 80px rgba(0,0,0,0.6), 0 0 60px rgba(0,212,255,0.15), inset 0 0 0 2px rgba(255,255,255,0.03)",
-      }}
+    <motion.div
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 z-[9999] flex flex-col overflow-hidden"
+      style={{ background: "var(--sl-bg)" }}
     >
-      {/* Screen */}
-      <div
-        className="relative w-full h-full overflow-hidden"
-        style={{
-          borderRadius: 36,
-          background: "radial-gradient(circle at top, #0f1022 0%, #05050e 70%)",
-        }}
+      <motion.p
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="absolute top-8 left-8 text-xs uppercase tracking-[0.3em]"
+        style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
       >
-        {/* Notch */}
-        <div
-          className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full z-10"
-          style={{ width: 100, height: 22, background: "#000" }}
-        />
+        System
+      </motion.p>
 
-        {/* Header bar */}
-        <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-between px-6 text-[10px] font-mono z-20" style={{ color: "var(--sl-text-muted)" }}>
-          <span>9:41</span>
-          <span>◈ SYSTEM</span>
-        </div>
-
-        {/* Content */}
-        <div className="absolute inset-0 pt-12 px-5 pb-6 flex flex-col gap-4">
-          {/* Rank card */}
-          <div
-            className="p-4 rounded-xl relative overflow-hidden"
+      <div className="flex-1 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={wordIndex}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 0.85 }}
+            exit={{ y: -20, opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="select-none uppercase"
             style={{
-              background: "rgba(0,212,255,0.05)",
-              border: "1px solid rgba(0,212,255,0.3)",
+              fontFamily: DF,
+              fontSize: "clamp(4rem, 13vw, 10rem)",
+              color: "var(--sl-text)",
+              lineHeight: 1,
+              letterSpacing: "0.05em",
             }}
           >
-            <div className="text-[9px] font-mono uppercase tracking-[0.3em]" style={{ color: "var(--sl-cyan)" }}>
-              ◈ Current Rank
-            </div>
-            <div className="flex items-end justify-between mt-1">
-              <div
-                className="text-5xl font-black leading-none"
-                style={{
-                  fontFamily: "var(--font-orbitron), monospace",
-                  color: "#c084fc",
-                  textShadow: "0 0 20px rgba(192,132,252,0.5)",
-                }}
-              >
-                B
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] font-mono uppercase" style={{ color: "var(--sl-text-muted)" }}>
-                  Level
-                </div>
-                <div className="text-2xl font-black" style={{ fontFamily: "var(--font-orbitron), monospace", color: "var(--sl-text)" }}>
-                  42
-                </div>
-              </div>
-            </div>
-            {/* XP bar */}
-            <div className="mt-3">
-              <div className="flex justify-between text-[9px] font-mono mb-1" style={{ color: "var(--sl-text-muted)" }}>
-                <span>XP</span>
-                <span>8,420 / 12,000</span>
-              </div>
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  whileInView={{ width: "70%" }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 1.4, ease: "easeOut", delay: 0.3 }}
-                  className="h-full"
-                  style={{
-                    background: "linear-gradient(90deg, #0ea5e9, #00d4ff, #67e8f9)",
-                    boxShadow: "0 0 8px rgba(0,212,255,0.6)",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Today's quests label */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="text-[10px] font-mono uppercase tracking-[0.3em]" style={{ color: "var(--sl-text-muted)" }}>
-              ◈ Today's Quests
-            </div>
-            <div className="text-[10px] font-mono" style={{ color: "var(--sl-cyan)" }}>
-              3/5
-            </div>
-          </div>
-
-          {/* Quest list */}
-          <div className="flex flex-col gap-2">
-            {[
-              { name: "Run 5km", xp: 150, done: true, color: "#f87171" },
-              { name: "Read 30 pages", xp: 80, done: true, color: "#60a5fa" },
-              { name: "Meditate 10 min", xp: 50, done: true, color: "#a78bfa" },
-              { name: "100 push-ups", xp: 120, done: false, color: "#f87171" },
-              { name: "Cold shower", xp: 40, done: false, color: "#60a5fa" },
-            ].map((q, i) => (
-              <motion.div
-                key={q.name}
-                initial={{ opacity: 0, x: -10 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.5 + i * 0.08, duration: 0.35 }}
-                className="flex items-center gap-3 p-2.5 rounded-lg"
-                style={{
-                  background: q.done ? "rgba(0,212,255,0.05)" : "rgba(255,255,255,0.02)",
-                  border: `1px solid ${q.done ? "rgba(0,212,255,0.2)" : "rgba(255,255,255,0.05)"}`,
-                  opacity: q.done ? 0.6 : 1,
-                }}
-              >
-                <div
-                  className="w-5 h-5 rounded flex items-center justify-center shrink-0"
-                  style={{
-                    background: q.done ? "var(--sl-cyan)" : "transparent",
-                    border: `1.5px solid ${q.done ? "var(--sl-cyan)" : q.color}`,
-                  }}
-                >
-                  {q.done && (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#05050e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div
-                    className="text-[11px] font-semibold"
-                    style={{
-                      color: q.done ? "var(--sl-text-muted)" : "var(--sl-text)",
-                      textDecoration: q.done ? "line-through" : "none",
-                    }}
-                  >
-                    {q.name}
-                  </div>
-                </div>
-                <div
-                  className="text-[9px] font-mono font-bold"
-                  style={{ color: q.color }}
-                >
-                  +{q.xp} XP
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+            {LOADING_WORDS[wordIndex]}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Subtle scanline */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.04]"
-        style={{
-          borderRadius: 44,
-          backgroundImage:
-            "repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(0,212,255,0.5) 2px, rgba(0,212,255,0.5) 3px)",
-        }}
-      />
-    </div>
+        className="absolute bottom-10 right-10 tabular-nums select-none"
+        style={{ fontFamily: OF, fontSize: "clamp(2.5rem, 7vw, 6rem)", color: "var(--sl-text-muted)", lineHeight: 1 }}
+      >
+        {String(count).padStart(3, "0")}
+      </div>
+
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: "rgba(255,255,255,0.04)" }}>
+        <div
+          className="h-full accent-gradient"
+          style={{
+            width: `${count}%`,
+            boxShadow: "0 0 8px rgba(137,170,204,0.35)",
+            transition: "width 16ms linear",
+          }}
+        />
+      </div>
+    </motion.div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   PAGE
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   useEffect(() => setLoggedIn(!!getToken()), []);
 
   return (
     <div className="relative overflow-x-hidden" style={{ background: "var(--sl-bg)", color: "var(--sl-text)" }}>
+      <AnimatePresence>{isLoading && <LoadingScreen onComplete={() => setIsLoading(false)} />}</AnimatePresence>
       <Nav loggedIn={loggedIn} />
       <Hero />
-      <PullQuoteSection />
-      <PhoneMockupSection />
-      <SystemSection />
-      <RankProgressionSection />
+      <ManifestoSection />
+      <HunterLogSection />
+
       <QuestSection />
-      <LiveBuildSection />
-      <FinalCta />
-      <Footer />
+      <StatsSection />
+      <SiteFooter />
     </div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   NAV
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── Nav ──────────────────────────────────────────────────────────────────────
 
 function Nav({ loggedIn }: { loggedIn: boolean }) {
   const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState("Home");
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 30);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    const fn = () => setScrolled(window.scrollY > 100);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   return (
-    <motion.nav
-      initial={{ y: -40, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      style={{
-        background: scrolled ? "rgba(5,5,14,0.85)" : "transparent",
-        backdropFilter: scrolled ? "blur(12px)" : undefined,
-        borderBottom: scrolled ? "1px solid var(--sl-border)" : "1px solid transparent",
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Crown size={20} style={{ color: "var(--sl-cyan)" }} />
-          <span className="font-black text-lg tracking-widest" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-            SYSTEM
-          </span>
+    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-5 px-4">
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: "easeOut", delay: 0.15 }}
+        className="inline-flex items-center rounded-full backdrop-blur-md border px-2 py-2 transition-all duration-300"
+        style={{
+          background: "rgba(10,11,24,0.75)",
+          borderColor: "rgba(255,255,255,0.08)",
+          boxShadow: scrolled ? "0 8px 32px rgba(0,0,0,0.5)" : "none",
+        }}
+      >
+        {/* Logo pill */}
+        <div
+          className="w-9 h-9 rounded-full relative flex items-center justify-center cursor-pointer shrink-0 overflow-hidden"
+          style={{ background: "linear-gradient(135deg, #89AACC, #4E85BF)" }}
+        >
+          <div
+            className="absolute inset-[2px] rounded-full flex items-center justify-center"
+            style={{ background: "var(--sl-bg)" }}
+          >
+            <span className="italic" style={{ fontFamily: DF, fontSize: "1rem", color: "var(--sl-text)" }}>
+              S
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          {loggedIn ? (
-            <Link href="/dashboard" className="sl-btn sl-btn-primary">
-              Dashboard
-              <ArrowRight size={14} />
-            </Link>
-          ) : (
-            <>
-              <Link href="/login" className="sl-btn sl-btn-ghost">
-                Login
-              </Link>
-              <Link href="/register" className="sl-btn sl-btn-primary">
-                Awaken
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-    </motion.nav>
+
+        <div className="w-px h-5 mx-2 hidden sm:block" style={{ background: "rgba(255,255,255,0.08)" }} />
+
+        {["Home", "Quests", "Ranks"].map(link => (
+          <button
+            key={link}
+            onClick={() => setActive(link)}
+            className="text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 sm:py-2 transition-all duration-200"
+            style={{
+              fontFamily: IF,
+              fontWeight: active === link ? 500 : 400,
+              color: active === link ? "var(--sl-text)" : "var(--sl-text-muted)",
+              background: active === link ? "rgba(255,255,255,0.06)" : "transparent",
+            }}
+          >
+            {link}
+          </button>
+        ))}
+
+        <div className="w-px h-5 mx-2" style={{ background: "rgba(255,255,255,0.08)" }} />
+
+        <Link
+          href={loggedIn ? "/dashboard" : "/register"}
+          className="text-xs sm:text-sm rounded-full px-4 py-1.5 sm:py-2 transition-all duration-200 hover:opacity-75"
+          style={{ fontFamily: IF, color: "var(--sl-cyan)" }}
+        >
+          {loggedIn ? "Dashboard" : "Awaken"} ↗
+        </Link>
+      </motion.div>
+    </div>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   HERO — multi-layer parallax (bg, grid, glyph, content)
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── Hero ─────────────────────────────────────────────────────────────────────
 
 function Hero() {
   const ref = useRef<HTMLElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<HlsType | null>(null);
+  const [roleIndex, setRoleIndex] = useState(0);
 
-  const { scrollY } = useScroll();
-  // 4 parallax layers at different rates for depth
-  const bgY = useTransform(scrollY, [0, 1000], [0, 380]);
-  const gridY = useTransform(scrollY, [0, 1000], [0, 220]);
-  const glyphY = useTransform(scrollY, [0, 1000], [0, 140]);
-  const contentY = useTransform(scrollY, [0, 1000], [0, 60]);
-  const overlayOpacity = useTransform(scrollY, [0, 600], [0.4, 0.95]);
-  const heroOpacity = useTransform(scrollY, [0, 700], [1, 0]);
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    import("hls.js").then(({ default: Hls }) => {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hlsRef.current = hls;
+        hls.loadSource(HLS_SRC);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = HLS_SRC;
+      }
+    });
+    return () => { hlsRef.current?.destroy(); hlsRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    const iv = setInterval(() => setRoleIndex(i => (i + 1) % HERO_ROLES.length), 2000);
+    return () => clearInterval(iv);
+  }, []);
 
   useGSAP(
     () => {
-      const title = titleRef.current;
-      if (!title) return;
-      const letters = title.querySelectorAll<HTMLElement>("[data-letter]");
-      gsap.fromTo(
-        letters,
-        { y: 80, opacity: 0, filter: "blur(16px)" },
-        {
-          y: 0,
-          opacity: 1,
-          filter: "blur(0px)",
-          duration: 0.9,
-          stagger: 0.06,
-          delay: 0.4,
-          ease: "power3.out",
-        }
-      );
+      const tl = gsap.timeline();
+      tl.fromTo(".name-reveal", { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 1.2, ease: "power3.out", delay: 0.1 });
+      tl.fromTo(".blur-in", { opacity: 0, filter: "blur(10px)", y: 20 }, { opacity: 1, filter: "blur(0px)", y: 0, duration: 1, stagger: 0.12, ease: "power3.out" }, 0.3);
     },
     { scope: ref }
   );
 
   return (
-    <motion.section
-      ref={ref}
-      style={{ opacity: heroOpacity }}
-      className="relative h-screen w-full overflow-hidden flex items-center justify-center"
-    >
-      {/* Layer 1 — background image, slowest */}
-      <motion.div style={{ y: bgY }} className="absolute inset-0 -top-32 -bottom-32">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage:
-              "url('/sl/hero.jpg'), radial-gradient(ellipse at center, #1a1f3a 0%, #05050e 70%)",
-          }}
+    <section ref={ref} className="relative h-screen w-full overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0 overflow-hidden">
+        <video
+          ref={videoRef}
+          autoPlay muted loop playsInline
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-full min-h-full object-cover"
         />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 0%, rgba(5,5,14,0.45) 55%, rgba(5,5,14,0.95) 100%)",
-          }}
-        />
-      </motion.div>
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="absolute bottom-0 left-0 right-0 h-56" style={{ background: "linear-gradient(to top, var(--sl-bg), transparent)" }} />
+        <div className="absolute top-0 left-0 right-0 h-40" style={{ background: "linear-gradient(to bottom, rgba(5,5,14,0.55), transparent)" }} />
+      </div>
 
-      {/* Layer 2 — scan grid, medium parallax */}
-      <motion.div style={{ y: gridY, opacity: overlayOpacity }} className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute inset-0 opacity-[0.18]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(0,212,255,0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.09) 1px, transparent 1px)",
-            backgroundSize: "80px 80px",
-          }}
-        />
-        {/* Horizontal scanline sweep */}
-        <motion.div
-          animate={{ y: ["0vh", "100vh", "0vh"] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
-          className="absolute left-0 right-0 h-24 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(180deg, transparent 0%, rgba(0,212,255,0.08) 50%, transparent 100%)",
-          }}
-        />
-      </motion.div>
-
-      {/* Layer 3 — floating rank-dot glyph, subtle parallax */}
-      <motion.div
-        style={{ y: glyphY }}
-        className="absolute top-28 right-[8%] hidden md:block z-10"
-      >
-        <motion.div
-          animate={{ y: [0, -10, 0], rotate: [0, 2, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+      <div className="relative z-10 max-w-3xl px-8 text-center">
+        <p
+          className="blur-in text-xs uppercase tracking-[0.35em] mb-10"
+          style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
         >
-          <RankDotsGlyph size={72} delay={0.8} />
-        </motion.div>
-      </motion.div>
-
-      <motion.div
-        style={{ y: glyphY }}
-        className="absolute bottom-28 left-[6%] hidden md:block z-10"
-      >
-        <motion.div
-          animate={{ y: [0, 10, 0], rotate: [0, -2, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <RankDotsGlyph size={48} delay={1.1} />
-        </motion.div>
-      </motion.div>
-
-      {/* Layer 4 — content, slightly parallaxed */}
-      <motion.div
-        style={{ y: contentY }}
-        className="relative z-20 max-w-5xl px-6 text-center"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.4em] mb-8 px-4 py-2 rounded-full"
-          style={{
-            color: "var(--sl-cyan)",
-            background: "rgba(0,212,255,0.06)",
-            border: "1px solid rgba(0,212,255,0.25)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "var(--sl-cyan)" }} />
-            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "var(--sl-cyan)" }} />
-          </span>
-          SYSTEM NOTIFICATION · INCOMING
-        </motion.div>
+          System &#39;26
+        </p>
 
         <h1
-          ref={titleRef}
-          className="text-6xl md:text-8xl lg:text-[10rem] font-black mb-8 leading-none"
+          className="name-reveal italic leading-[0.88] tracking-tight mb-8"
           style={{
-            fontFamily: "var(--font-orbitron), monospace",
-            textShadow: "0 0 40px rgba(0,212,255,0.5), 0 0 80px rgba(0,212,255,0.2)",
+            fontFamily: DF,
+            fontSize: "clamp(3.5rem, 11vw, 9.5rem)",
+            color: "var(--sl-text)",
+            fontWeight: 400,
           }}
         >
-          {"ARISE".split("").map((c, i) => (
-            <span key={i} data-letter className="inline-block">
-              {c}
-            </span>
-          ))}
+          Shadow Monarch
         </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
-          className="text-lg md:text-2xl mb-12 max-w-3xl mx-auto font-light leading-snug"
-          style={{ color: "var(--sl-text-muted)" }}
+        <p className="blur-in mb-5" style={{ fontFamily: IF, fontSize: "clamp(0.95rem, 1.8vw, 1.15rem)", color: "var(--sl-text-muted)", fontWeight: 300 }}>
+          Rise as a{" "}
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={roleIndex}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35 }}
+              className="inline-block italic"
+              style={{ fontFamily: DF, fontSize: "1.1em", color: "var(--sl-cyan)" }}
+            >
+              {HERO_ROLES[roleIndex]}
+            </motion.span>
+          </AnimatePresence>
+          {". From weakest to strongest."}
+        </p>
+
+        <p
+          className="blur-in text-sm leading-relaxed max-w-sm mx-auto mb-12"
+          style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
         >
-          Every habit is a quest. Every day is a gate.{" "}
-          <span style={{ color: "var(--sl-text)", fontWeight: 600 }}>
-            Every level-up is permanent.
-          </span>
-        </motion.p>
+          Gamify your real life. Complete quests, earn XP, climb from E-Rank to S-Rank.
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.6 }}
-          className="flex justify-center"
-        >
-          <p className="font-mono text-sm uppercase tracking-widest" style={{ color: "var(--sl-cyan)" }}>◈ Early access coming soon</p>
-        </motion.div>
-      </motion.div>
-
-      {/* Scroll cue */}
-      <motion.div
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
-      >
-        <span className="text-[0.6rem] font-mono uppercase tracking-[0.3em]" style={{ color: "var(--sl-text-dim)" }}>
-          Enter the Gate
-        </span>
-        <ChevronDown size={20} style={{ color: "var(--sl-cyan)" }} />
-      </motion.div>
-    </motion.section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   PULL QUOTE — the manifesto. Parallax bg, massive type.
-   ────────────────────────────────────────────────────────────────────────── */
-
-function PullQuoteSection() {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const glyphY = useTransform(scrollYProgress, [0, 1], [120, -120]);
-  const headingY = useTransform(scrollYProgress, [0, 1], [60, -60]);
-
-  return (
-    <section ref={ref} className="relative py-32 md:py-48 overflow-hidden">
-      {/* Parallax glyph backdrop */}
-      <motion.div
-        style={{ y: glyphY }}
-        className="absolute -top-20 -right-20 md:-right-10 opacity-30 pointer-events-none"
-      >
-        <div
-          className="text-[32rem] font-black leading-none"
-          style={{
-            fontFamily: "var(--font-orbitron), monospace",
-            color: "transparent",
-            WebkitTextStroke: "2px rgba(0,212,255,0.15)",
-          }}
-        >
-          S
+        <div className="blur-in flex gap-4 flex-wrap justify-center">
+          <Link
+            href="/register"
+            className="rounded-full text-sm px-7 py-3.5 transition-all duration-200 hover:scale-105 hover:opacity-90"
+            style={{ background: "var(--sl-text)", color: "var(--sl-bg)", fontFamily: IF, fontWeight: 500 }}
+          >
+            Enter System
+          </Link>
+          <Link
+            href="/login"
+            className="rounded-full text-sm px-7 py-3.5 transition-all duration-200 hover:scale-105"
+            style={{ border: "1px solid rgba(255,255,255,0.12)", color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 400 }}
+          >
+            Already a Hunter ↗
+          </Link>
         </div>
-      </motion.div>
+      </div>
 
-      <div className="relative max-w-7xl mx-auto px-6 md:px-12">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.6 }}
-          className="flex items-center gap-4 mb-10"
-        >
-          <RankDotsGlyph size={52} />
-          <div className="text-xs font-mono uppercase tracking-[0.4em]" style={{ color: "var(--sl-cyan)" }}>
-            ◈ THE SYSTEM MANIFESTO
-          </div>
-        </motion.div>
-
-        <motion.h2
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.8 }}
-          className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.85] tracking-tight mb-12"
-          style={{
-            y: headingY,
-            fontFamily: "var(--font-orbitron), monospace",
-            color: "var(--sl-cyan)",
-            textShadow: "0 0 60px rgba(0,212,255,0.25)",
-          }}
-        >
-          TURNING WEAK HUNTERS
-          <br />
-          <span style={{ color: "#c084fc", textShadow: "0 0 60px rgba(192,132,252,0.3)" }}>INTO MONARCHS</span>
-        </motion.h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-xl md:text-3xl font-light leading-[1.2]"
-            style={{ color: "var(--sl-text)" }}
-          >
-            Most people live at E-Rank their whole life. They scroll, they survive, they stay weak by default.
-          </motion.p>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="text-base md:text-lg leading-relaxed"
-            style={{ color: "var(--sl-text-muted)" }}
-          >
-            The System changes that. It assigns your quests, tracks your XP, and ranks you against the only opponent who matters — the weaker version of yourself from yesterday. Real discipline. Real growth. Real transformation, gamified.
-          </motion.p>
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+        <span className="text-[10px] uppercase tracking-[0.3em]" style={{ color: "var(--sl-text-dim)", fontFamily: IF, fontWeight: 300 }}>
+          Scroll
+        </span>
+        <div className="relative w-px h-10 overflow-hidden" style={{ background: "var(--sl-border)" }}>
+          <div className="absolute inset-x-0 animate-scroll-down" style={{ height: "40%", background: "var(--sl-cyan)" }} />
         </div>
       </div>
     </section>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   PHONE MOCKUP — "This isn't an app. It's a system."
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── Features Bento Grid ──────────────────────────────────────────────────────
 
-function PhoneMockupSection() {
+function FeaturesSection() {
+  return (
+    <section className="py-20 md:py-28">
+      <div className="max-w-[1200px] mx-auto px-6 md:px-10 lg:px-16">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6"
+        >
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-px" style={{ background: "var(--sl-border-bright)" }} />
+              <p className="text-xs uppercase tracking-[0.3em]" style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}>
+                Selected Work
+              </p>
+            </div>
+            <h2 style={{ fontFamily: DF, fontSize: "clamp(2.2rem, 5vw, 4.5rem)", color: "var(--sl-text)", lineHeight: 0.9 }}>
+              Featured <em style={{ color: "var(--sl-text-muted)" }}>features</em>
+            </h2>
+            <p className="text-sm mt-4 max-w-xs" style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}>
+              A real-time system panel for your life. Quests. XP. Rank. No excuses.
+            </p>
+          </div>
+          <Link
+            href="/register"
+            className="hidden md:inline-flex items-center gap-2 text-xs px-5 py-2.5 rounded-full transition-all hover:opacity-70 shrink-0"
+            style={{ border: "1px solid var(--sl-border)", color: "var(--sl-text-muted)", fontFamily: IF }}
+          >
+            View all ↗
+          </Link>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5">
+          {FEATURES.map((f, i) => (
+            <motion.div
+              key={f.title}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.7, delay: i * 0.08 }}
+              className={`group relative overflow-hidden rounded-2xl cursor-pointer ${f.span}`}
+              style={{
+                aspectRatio: f.span.includes("7") ? "16/9" : "4/3",
+                background: "var(--sl-surface)",
+                border: "1px solid var(--sl-border)",
+              }}
+            >
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-[1.04]"
+                style={{ backgroundImage: `url('${f.image}')` }}
+              />
+              <div
+                className="absolute inset-0 opacity-20 mix-blend-multiply"
+                style={{
+                  backgroundImage: "radial-gradient(circle, #000 1px, transparent 1px)",
+                  backgroundSize: "4px 4px",
+                }}
+              />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(5,5,14,0.95) 0%, rgba(5,5,14,0.15) 60%)" }} />
+
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 backdrop-blur-[2px]"
+                style={{ background: "rgba(5,5,14,0.55)" }}
+              />
+
+              <div className="absolute inset-0 p-5 md:p-6 flex flex-col justify-end">
+                <p className="text-[10px] uppercase tracking-[0.35em] mb-2" style={{ color: f.accent, fontFamily: IF, fontWeight: 300 }}>
+                  {f.tag}
+                </p>
+                <h3 className="italic leading-tight" style={{ fontFamily: DF, fontSize: "clamp(1.2rem, 2.5vw, 1.9rem)", color: "var(--sl-text)" }}>
+                  {f.title}
+                </h3>
+              </div>
+
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div
+                  className="relative px-5 py-2.5 rounded-full text-sm"
+                  style={{ background: "var(--sl-text)", color: "var(--sl-bg)", fontFamily: IF, fontWeight: 500 }}
+                >
+                  View — <em style={{ fontFamily: DF }}>{f.title}</em>
+                </div>
+              </div>
+
+              <div
+                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                style={{ boxShadow: `inset 0 0 0 1px ${f.accent}40` }}
+              />
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Manifesto — System Awakening ─────────────────────────────────────────────
+
+function ManifestoSection() {
   const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const phoneY = useTransform(scrollYProgress, [0, 1], [80, -80]);
-  const textY = useTransform(scrollYProgress, [0, 1], [40, -40]);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const cardY = useTransform(scrollYProgress, [0, 1], [40, -40]);
 
   return (
-    <section
-      ref={ref}
-      className="relative py-24 md:py-32 overflow-hidden"
-      style={{ background: "var(--sl-surface)" }}
-    >
+    <section ref={ref} className="relative py-24 md:py-40 overflow-hidden">
+      {/* Subtle grid texture */}
       <div
-        className="absolute inset-0 opacity-[0.4] pointer-events-none"
+        className="absolute inset-0 opacity-40 pointer-events-none"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 20% 30%, rgba(0,212,255,0.12) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(192,132,252,0.1) 0%, transparent 40%)",
+            "linear-gradient(rgba(0,212,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.035) 1px, transparent 1px)",
+          backgroundSize: "80px 80px",
+        }}
+      />
+      {/* Center radial glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 55% at 50% 60%, rgba(123,47,255,0.07) 0%, transparent 70%)",
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-16 lg:gap-24 items-center">
-        {/* Phone */}
-        <motion.div style={{ y: phoneY }} className="relative mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.85 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
+      <div className="max-w-7xl mx-auto px-6 md:px-12 relative">
+        {/* System notification tag */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="inline-flex items-center gap-3 mb-16 px-4 py-2"
+          style={{
+            border: "1px solid rgba(0,212,255,0.2)",
+            background: "rgba(0,212,255,0.03)",
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-pulse"
+            style={{ background: "var(--sl-cyan)" }}
+          />
+          <span
+            className="text-[9px] uppercase tracking-[0.4em]"
+            style={{ color: "var(--sl-cyan)", fontFamily: OF }}
           >
-            <PhoneMockup />
-          </motion.div>
+            System · Awakening Protocol
+          </span>
+        </motion.div>
 
-          {/* Floating dots beside phone */}
-          <div className="absolute -top-8 -right-8 hidden lg:block">
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+          {/* Left: Manifesto */}
+          <div>
+            <motion.h2
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="leading-[0.9] mb-12 uppercase"
+              style={{
+                fontFamily: DF,
+                fontSize: "clamp(2.4rem, 6vw, 5rem)",
+                color: "var(--sl-text)",
+                letterSpacing: "0.02em",
+              }}
             >
-              <RankDotsGlyph size={48} delay={0.3} />
+              Turning Weak
+              <br />
+              Hunters Into
+              <br />
+              <span style={{ color: "var(--sl-cyan)" }}>Monarchs.</span>
+            </motion.h2>
+
+            {/* System message panels */}
+            <div className="space-y-3">
+              {[
+                {
+                  label: "PROBLEM",
+                  text: "Most people live at E-Rank their entire lives. They scroll, survive, and stay weak by choice — or by default.",
+                  color: "#f87171",
+                },
+                {
+                  label: "SOLUTION",
+                  text: "The System assigns your quests, tracks your XP, and ranks you against the only opponent who matters — your past self.",
+                  color: "var(--sl-cyan)",
+                },
+                {
+                  label: "RESULT",
+                  text: "Real discipline. Real growth. Every completed quest is permanent progress. No shortcuts. No resets.",
+                  color: "#c084fc",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: i * 0.12 }}
+                  className="flex gap-4 p-5"
+                  style={{
+                    background: "rgba(255,255,255,0.015)",
+                    border: "1px solid var(--sl-border)",
+                    borderLeft: `2px solid ${item.color}`,
+                  }}
+                >
+                  <div className="shrink-0 pt-0.5 w-20">
+                    <span
+                      className="text-[8px] uppercase tracking-[0.35em]"
+                      style={{ color: item.color, fontFamily: OF }}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                  <p
+                    className="text-sm leading-relaxed"
+                    style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
+                  >
+                    {item.text}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5 }}
+              className="mt-10 flex items-center gap-4"
+            >
+              <div className="h-px w-12" style={{ background: "var(--sl-border-bright)" }} />
+              <p
+                className="text-[9px] uppercase tracking-[0.35em]"
+                style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+              >
+                Real discipline. Real growth.
+              </p>
             </motion.div>
           </div>
-        </motion.div>
 
-        {/* Copy */}
-        <motion.div style={{ y: textY }}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-            className="text-xs font-mono uppercase tracking-[0.4em] mb-6"
-            style={{ color: "var(--sl-cyan)" }}
-          >
-            ◈ WHAT YOU GET
-          </motion.div>
-
-          <motion.h2
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight mb-8"
-            style={{ fontFamily: "var(--font-orbitron), monospace" }}
-          >
-            THIS ISN'T AN APP.
-            <br />
-            <span style={{ color: "var(--sl-cyan)", textShadow: "0 0 50px rgba(0,212,255,0.3)" }}>
-              IT'S A SYSTEM.
-            </span>
-          </motion.h2>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="space-y-5 text-base md:text-lg leading-relaxed max-w-xl"
-            style={{ color: "var(--sl-text-muted)" }}
-          >
-            <p>
-              A real-time System panel for your life. Quests that update at dawn. An XP bar that fills as you train.
-              A rank that climbs from E to S as you prove the work.
-            </p>
-            <p style={{ color: "var(--sl-text)" }}>
-              No dashboards to decorate. No streaks to manipulate. Just you vs. the System — and a permanent record of every level-up.
-            </p>
-          </motion.div>
-
-          {/* Feature pills */}
-          <div className="flex flex-wrap gap-3 mt-10">
-            {[
-              { icon: Target, label: "Daily quests" },
-              { icon: TrendingUp, label: "Real XP" },
-              { icon: Shield, label: "Penalty system" },
-              { icon: Crown, label: "Rank E → S" },
-            ].map((f, i) => (
-              <motion.div
-                key={f.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.3, delay: 0.3 + i * 0.08 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-mono"
+          {/* Right: Hunter Profile Card */}
+          <motion.div style={{ y: cardY }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="relative overflow-hidden"
+              style={{
+                background: "var(--sl-surface)",
+                border: "1px solid var(--sl-border-bright)",
+                boxShadow:
+                  "0 0 60px rgba(0,212,255,0.04), inset 0 1px 0 rgba(255,255,255,0.04)",
+              }}
+            >
+              {/* Card header bar */}
+              <div
+                className="px-5 py-3 flex items-center justify-between"
                 style={{
-                  background: "rgba(0,212,255,0.05)",
-                  border: "1px solid var(--sl-border-bright)",
-                  color: "var(--sl-text)",
+                  borderBottom: "1px solid var(--sl-border)",
+                  background: "rgba(0,212,255,0.025)",
                 }}
               >
-                <f.icon size={14} style={{ color: "var(--sl-cyan)" }} />
-                {f.label}
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "var(--sl-cyan)" }}
+                  />
+                  <span
+                    className="text-[9px] uppercase tracking-[0.4em]"
+                    style={{ color: "var(--sl-cyan)", fontFamily: OF }}
+                  >
+                    Hunter Profile
+                  </span>
+                </div>
+                <span
+                  className="text-[8px] uppercase tracking-[0.3em]"
+                  style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                >
+                  Status: Unawakened
+                </span>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* Rank display */}
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p
+                      className="text-[8px] uppercase tracking-[0.35em] mb-1.5"
+                      style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                    >
+                      Current Rank
+                    </p>
+                    <div
+                      className="text-5xl font-bold tabular-nums leading-none"
+                      style={{
+                        fontFamily: OF,
+                        color: "var(--rank-e)",
+                        textShadow: "0 0 24px rgba(156,163,175,0.35)",
+                      }}
+                    >
+                      E
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pb-1">
+                    {["E", "D", "C", "B", "A", "S"].map((r, i) => (
+                      <div
+                        key={r}
+                        className="text-[10px] font-bold flex items-center justify-center"
+                        style={{
+                          fontFamily: OF,
+                          width: "22px",
+                          height: "22px",
+                          color: ["var(--rank-e)","var(--rank-d)","var(--rank-c)","var(--rank-b)","var(--rank-a)","var(--rank-s)"][i],
+                          border: `1px solid ${["var(--rank-e)","var(--rank-d)","var(--rank-c)","var(--rank-b)","var(--rank-a)","var(--rank-s)"][i]}40`,
+                          background: i === 0 ? `${"var(--rank-e)"}18` : "transparent",
+                          opacity: i === 0 ? 1 : 0.35,
+                        }}
+                      >
+                        {r}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* XP bar */}
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span
+                      className="text-[8px] uppercase tracking-[0.3em]"
+                      style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                    >
+                      XP Progress
+                    </span>
+                    <span
+                      className="text-[8px]"
+                      style={{ color: "var(--sl-cyan)", fontFamily: OF }}
+                    >
+                      0 / 500
+                    </span>
+                  </div>
+                  <div className="xp-bar-track">
+                    <div className="xp-bar-fill" style={{ width: "4%", animation: "none" }} />
+                  </div>
+                </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: "Daily Quests", value: "0 / 5" },
+                    { label: "Streak", value: "—" },
+                    { label: "Gates Cleared", value: "0" },
+                    { label: "Shadow Army", value: "—" },
+                  ].map(stat => (
+                    <div
+                      key={stat.label}
+                      className="px-3 py-2.5"
+                      style={{
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid var(--sl-border)",
+                      }}
+                    >
+                      <p
+                        className="text-[7px] uppercase tracking-[0.3em] mb-1"
+                        style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                      >
+                        {stat.label}
+                      </p>
+                      <p
+                        className="text-sm"
+                        style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                      >
+                        {stat.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Quote */}
+                <div
+                  className="pt-4 border-t text-center"
+                  style={{ borderColor: "var(--sl-border)" }}
+                >
+                  <p
+                    className="text-xs"
+                    style={{
+                      color: "var(--sl-text-muted)",
+                      fontFamily: DF,
+                      fontStyle: "italic",
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    &ldquo;The System has chosen you.&rdquo;
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <Link
+                  href="/register"
+                  className="block w-full text-center py-3 transition-all hover:opacity-80"
+                  style={{
+                    background: "rgba(0,212,255,0.07)",
+                    border: "1px solid rgba(0,212,255,0.28)",
+                    color: "var(--sl-cyan)",
+                    fontFamily: OF,
+                    fontSize: "0.65rem",
+                    letterSpacing: "0.22em",
+                    textDecoration: "none",
+                  }}
+                >
+                  INITIALIZE SYSTEM ↗
+                </Link>
+              </div>
+
+              {/* Corner accent lines */}
+              <div
+                className="absolute top-0 right-0 w-8 h-8 pointer-events-none"
+                style={{
+                  borderTop: "1px solid rgba(0,212,255,0.3)",
+                  borderRight: "1px solid rgba(0,212,255,0.3)",
+                }}
+              />
+              <div
+                className="absolute bottom-0 left-0 w-8 h-8 pointer-events-none"
+                style={{
+                  borderBottom: "1px solid rgba(0,212,255,0.3)",
+                  borderLeft: "1px solid rgba(0,212,255,0.3)",
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   SYSTEM — 3-step "how it works"
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── Hunter Log — Combat Archives ────────────────────────────────────────────
 
-function SystemSection() {
+function HunterLogSection() {
+  return (
+    <section className="py-20 md:py-28">
+      <div className="max-w-4xl mx-auto px-6 md:px-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="flex items-end justify-between mb-12"
+        >
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-px" style={{ background: "var(--sl-border-bright)" }} />
+              <span
+                className="text-[9px] uppercase tracking-[0.4em]"
+                style={{ color: "var(--sl-cyan)", fontFamily: OF }}
+              >
+                ◈ Mission Archives
+              </span>
+            </div>
+            <h2
+              className="uppercase"
+              style={{
+                fontFamily: DF,
+                fontSize: "clamp(2rem, 4.5vw, 3.8rem)",
+                color: "var(--sl-text)",
+                lineHeight: 0.92,
+                letterSpacing: "0.04em",
+              }}
+            >
+              Combat{" "}
+              <span style={{ color: "var(--sl-text-muted)" }}>Records</span>
+            </h2>
+          </div>
+          <Link
+            href="#"
+            className="hidden md:inline-flex text-[9px] px-4 py-2 transition hover:opacity-70 uppercase tracking-[0.15em]"
+            style={{
+              border: "1px solid var(--sl-border)",
+              color: "var(--sl-text-muted)",
+              fontFamily: OF,
+            }}
+          >
+            View All ↗
+          </Link>
+        </motion.div>
+
+        <div className="space-y-2">
+          {HUNTER_LOGS.map((log, i) => (
+            <motion.div
+              key={log.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.08 }}
+              whileHover={{ background: "rgba(10,11,24,0.7)" }}
+              className="group flex items-center gap-4 p-4 cursor-pointer transition-all duration-300"
+              style={{
+                background: "rgba(10,11,24,0.3)",
+                border: "1px solid var(--sl-border)",
+                borderLeft: `2px solid ${log.rankColor}`,
+              }}
+            >
+              {/* Rank badge */}
+              <div
+                className="shrink-0 w-10 h-10 flex items-center justify-center font-bold text-sm"
+                style={{
+                  fontFamily: OF,
+                  color: log.rankColor,
+                  border: `1px solid ${log.rankColor}40`,
+                  background: `${log.rankColor}08`,
+                }}
+              >
+                {log.rank}
+              </div>
+
+              {/* Thumbnail */}
+              <div
+                className="shrink-0 w-12 h-12 overflow-hidden"
+                style={{ border: "1px solid var(--sl-border)" }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={log.image}
+                  alt={log.title}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  style={{ filter: "brightness(0.65) saturate(0.75)" }}
+                />
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <h3
+                  className="text-sm uppercase tracking-[0.05em]"
+                  style={{
+                    color: "var(--sl-text)",
+                    fontFamily: DF,
+                    fontWeight: 600,
+                    fontSize: "0.78rem",
+                  }}
+                >
+                  {log.title}
+                </h3>
+                <p
+                  className="text-xs truncate hidden sm:block mt-0.5"
+                  style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
+                >
+                  {log.desc}
+                </p>
+              </div>
+
+              {/* XP earned */}
+              <div className="text-right shrink-0 hidden md:block">
+                <p
+                  className="tabular-nums text-base font-bold"
+                  style={{
+                    color: log.rankColor,
+                    fontFamily: OF,
+                    textShadow: `0 0 14px ${log.rankColor}55`,
+                  }}
+                >
+                  {log.xp}
+                </p>
+                <p
+                  className="text-[7px] uppercase tracking-[0.2em] mt-0.5"
+                  style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                >
+                  XP Gained
+                </p>
+              </div>
+
+              {/* Day */}
+              <p
+                className="text-[10px] shrink-0"
+                style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+              >
+                {log.meta}
+              </p>
+
+              <span
+                className="text-sm shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+                style={{ color: log.rankColor }}
+              >
+                ↗
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+// ─── Quest Board ──────────────────────────────────────────────────────────────
+
+function QuestSection() {
   const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const bgY = useTransform(scrollYProgress, [0, 1], [100, -100]);
 
   useGSAP(
     () => {
       gsap.fromTo(
-        "[data-step]",
-        { opacity: 0, y: 80, scale: 0.9 },
+        "[data-quest]",
+        { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
-          scale: 1,
-          duration: 0.8,
-          stagger: 0.2,
-          ease: "back.out(1.4)",
+          duration: 0.7,
+          stagger: 0.14,
+          ease: "power2.out",
           scrollTrigger: { trigger: ref.current, start: "top 70%" },
         }
       );
@@ -804,279 +1035,244 @@ function SystemSection() {
       n: "01",
       icon: Zap,
       title: "Receive Quests",
-      desc: "The System assigns daily quests across Fitness, Career, Intellect, Discipline, and Social.",
+      cmd: "ASSIGN_QUESTS",
+      desc: "System assigns daily quests across Fitness, Career, Intellect, Discipline, and Social.",
     },
     {
       n: "02",
       icon: Swords,
       title: "Complete or Suffer",
-      desc: "Finish quests for XP. Skip them and lose XP, break your streak, and trigger penalty quests.",
+      cmd: "EXECUTE_OR_PENALIZE",
+      desc: "Finish quests for XP. Skip them and lose XP, break your streak, trigger penalty quests.",
     },
     {
       n: "03",
       icon: Trophy,
       title: "Rank Up",
-      desc: "Climb from E-Rank to S-Rank. Higher ranks unlock harder quests with bigger rewards.",
+      cmd: "RANK_ASCENSION",
+      desc: "Climb from E to S. Higher ranks unlock harder quests with exponentially bigger rewards.",
     },
   ];
 
   return (
-    <section ref={ref} className="relative py-32 overflow-hidden">
-      <motion.div
-        style={{ y: bgY }}
-        className="absolute inset-0 opacity-[0.12] pointer-events-none"
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 50% 50%, rgba(0,212,255,0.4) 0%, transparent 60%)",
-          }}
-        />
-      </motion.div>
+    <section ref={ref} className="py-24 md:py-36">
+      <div className="max-w-6xl mx-auto px-6 md:px-12">
 
-      <div className="relative max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-3 mb-6">
-            <RankDotsGlyph size={42} />
-            <div className="text-xs font-mono uppercase tracking-[0.4em]" style={{ color: "var(--sl-cyan)" }}>
-              ◈ HOW IT WORKS
-            </div>
+        {/* System Protocol */}
+        <div className="mb-24">
+          <div className="flex items-center gap-3 mb-8">
+            <span
+              className="text-[9px] uppercase tracking-[0.4em]"
+              style={{ color: "var(--sl-cyan)", fontFamily: OF }}
+            >
+              ◈ System Protocol
+            </span>
           </div>
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-            THE SYSTEM AWAKENS
+
+          <div
+            className="grid grid-cols-1 md:grid-cols-3 gap-px"
+            style={{ background: "var(--sl-border)" }}
+          >
+            {steps.map(step => (
+              <div
+                key={step.n}
+                className="relative p-8 md:p-10 group"
+                style={{ background: "var(--sl-bg)" }}
+              >
+                {/* Terminal command header */}
+                <div className="flex items-center gap-2 mb-7">
+                  <span
+                    className="text-[8px]"
+                    style={{ color: "var(--sl-cyan)", fontFamily: OF, opacity: 0.6 }}
+                  >
+                    &gt;
+                  </span>
+                  <span
+                    className="text-[8px] uppercase tracking-[0.25em]"
+                    style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                  >
+                    {step.cmd}
+                  </span>
+                </div>
+
+                <div
+                  className="absolute top-4 right-5 uppercase select-none pointer-events-none"
+                  style={{
+                    fontFamily: DF,
+                    fontSize: "5rem",
+                    lineHeight: 1,
+                    color: "var(--sl-border)",
+                    fontWeight: 400,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {step.n}
+                </div>
+
+                <step.icon
+                  size={18}
+                  className="mb-5"
+                  style={{ color: "var(--sl-text-muted)" }}
+                />
+                <h3
+                  className="uppercase mb-3"
+                  style={{
+                    fontFamily: DF,
+                    fontSize: "clamp(1rem, 2vw, 1.4rem)",
+                    color: "var(--sl-text)",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {step.title}
+                </h3>
+                <p
+                  className="text-sm leading-relaxed"
+                  style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
+                >
+                  {step.desc}
+                </p>
+
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-all duration-300"
+                  style={{
+                    background: "linear-gradient(90deg, transparent, var(--sl-cyan), transparent)",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quest types heading */}
+        <div className="mb-12">
+          <h2
+            className="uppercase"
+            style={{
+              fontFamily: DF,
+              fontSize: "clamp(2rem, 5vw, 4rem)",
+              color: "var(--sl-text)",
+              lineHeight: 0.9,
+              letterSpacing: "0.03em",
+            }}
+          >
+            Choose your{" "}
+            <span style={{ color: "var(--sl-text-muted)" }}>Battles</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {steps.map((step) => (
-            <div
-              key={step.n}
-              data-step
-              className="relative p-8 rounded-lg overflow-hidden group"
-              style={{
-                background: "var(--sl-surface)",
-                border: "1px solid var(--sl-border)",
-                transition: "all 0.3s",
-              }}
+        {/* Quest cards */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-px"
+          style={{ background: "var(--sl-border)" }}
+        >
+          {QUESTS.map(q => (
+            <motion.div
+              key={q.label}
+              data-quest
+              whileHover={{ background: "var(--sl-surface)" }}
+              className="relative p-8 md:p-10 cursor-pointer group transition-colors duration-300"
+              style={{ background: "var(--sl-bg)" }}
             >
-              <div
-                className="absolute top-0 right-0 text-8xl font-black opacity-5 leading-none p-4"
-                style={{ fontFamily: "var(--font-orbitron), monospace", color: "var(--sl-cyan)" }}
-              >
-                {step.n}
+              {/* Quest window header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <q.icon size={13} style={{ color: q.color, opacity: 0.85 }} />
+                  <span
+                    className="text-[8px] uppercase tracking-[0.3em]"
+                    style={{ color: q.color, fontFamily: OF }}
+                  >
+                    {q.label}
+                  </span>
+                </div>
+                <div
+                  className="px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.15em]"
+                  style={{
+                    fontFamily: OF,
+                    color: q.diffColor,
+                    border: `1px solid ${q.diffColor}40`,
+                    background: `${q.diffColor}08`,
+                  }}
+                >
+                  {q.difficulty}-Rank
+                </div>
               </div>
-              <div
-                className="inline-flex items-center justify-center w-12 h-12 rounded-lg mb-4 relative"
+
+              <h3
+                className="uppercase mb-3"
                 style={{
-                  background: "rgba(0,212,255,0.1)",
-                  border: "1px solid var(--sl-cyan)",
-                  color: "var(--sl-cyan)",
+                  fontFamily: DF,
+                  fontSize: "clamp(1.1rem, 2vw, 1.55rem)",
+                  color: "var(--sl-text)",
+                  letterSpacing: "0.05em",
                 }}
               >
-                <step.icon size={24} />
-              </div>
-              <h3 className="text-xl font-bold mb-2 relative" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-                {step.title}
-              </h3>
-              <p className="text-sm relative" style={{ color: "var(--sl-text-muted)" }}>
-                {step.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   RANK PROGRESSION — pinned horizontal scroll E → S
-   ────────────────────────────────────────────────────────────────────────── */
-
-function RankProgressionSection() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(
-    () => {
-      const track = trackRef.current;
-      const section = sectionRef.current;
-      if (!track || !section) return;
-
-      const totalScroll = track.scrollWidth - window.innerWidth;
-
-      const tween = gsap.to(track, {
-        x: -totalScroll,
-        ease: "none",
-        scrollTrigger: {
-          trigger: section,
-          start: "top top",
-          end: () => `+=${totalScroll}`,
-          pin: true,
-          scrub: 1,
-          invalidateOnRefresh: true,
-        },
-      });
-
-      const cards = section.querySelectorAll<HTMLElement>("[data-rank-card]");
-      cards.forEach((card) => {
-        const letter = card.querySelector<HTMLElement>("[data-rank-letter]");
-        if (!letter) return;
-        gsap.fromTo(
-          letter,
-          { scale: 0.6, opacity: 0.3 },
-          {
-            scale: 1,
-            opacity: 1,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: card,
-              containerAnimation: tween,
-              start: "left center",
-              end: "right center",
-              scrub: true,
-            },
-          }
-        );
-      });
-
-      return () => {
-        tween.scrollTrigger?.kill();
-        tween.kill();
-      };
-    },
-    { scope: sectionRef }
-  );
-
-  return (
-    <section ref={sectionRef} className="relative h-screen overflow-hidden">
-      <div
-        className="absolute inset-0 opacity-25 bg-cover bg-center"
-        style={{ backgroundImage: "url('/sl/rank-up.png')" }}
-      />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, var(--sl-bg) 0%, transparent 20%, transparent 80%, var(--sl-bg) 100%)" }} />
-
-      <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 text-center">
-        <div className="text-xs font-mono uppercase tracking-[0.4em] mb-2" style={{ color: "var(--sl-cyan)" }}>
-          ◈ RANK PROGRESSION
-        </div>
-        <h2 className="text-3xl md:text-5xl font-black" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-          E TO S
-        </h2>
-      </div>
-
-      <div
-        ref={trackRef}
-        className="absolute top-1/2 -translate-y-1/2 flex items-center"
-        style={{ width: "max-content", paddingLeft: "20vw", paddingRight: "20vw", gap: "8vw" }}
-      >
-        {RANKS.map((r) => (
-          <div
-            key={r.letter}
-            data-rank-card
-            className="flex flex-col items-center text-center"
-            style={{ width: "60vw", maxWidth: 480 }}
-          >
-            <div
-              data-rank-letter
-              className="text-[14rem] md:text-[20rem] font-black leading-none mb-4"
-              style={{
-                fontFamily: "var(--font-orbitron), monospace",
-                color: r.color,
-                textShadow: `0 0 80px ${r.color}80, 0 0 160px ${r.color}40`,
-              }}
-            >
-              {r.letter}
-            </div>
-            <div
-              className="text-xs font-mono uppercase tracking-[0.3em] mb-2"
-              style={{ color: r.color }}
-            >
-              {r.title}
-            </div>
-            <p className="text-sm md:text-base" style={{ color: "var(--sl-text-muted)" }}>
-              {r.desc}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   QUESTS — three quest types with hover lift
-   ────────────────────────────────────────────────────────────────────────── */
-
-function QuestSection() {
-  const ref = useRef<HTMLElement>(null);
-
-  useGSAP(
-    () => {
-      gsap.fromTo(
-        "[data-quest-card]",
-        { opacity: 0, y: 60 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.7,
-          stagger: 0.15,
-          ease: "power2.out",
-          scrollTrigger: { trigger: ref.current, start: "top 75%" },
-        }
-      );
-    },
-    { scope: ref }
-  );
-
-  return (
-    <section ref={ref} className="relative py-32">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <div className="text-xs font-mono uppercase tracking-[0.4em] mb-4" style={{ color: "var(--sl-cyan)" }}>
-            ◈ QUEST TYPES
-          </div>
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-            CHOOSE YOUR BATTLES
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {QUESTS.map((q) => (
-            <motion.div
-              key={q.type}
-              data-quest-card
-              whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              className="relative p-6 rounded-lg overflow-hidden cursor-pointer group"
-              style={{
-                background: "var(--sl-surface)",
-                border: `1px solid ${q.color}30`,
-              }}
-            >
-              <div
-                className="absolute top-0 left-0 right-0 h-1"
-                style={{ background: `linear-gradient(90deg, transparent, ${q.color}, transparent)` }}
-              />
-              <div
-                className="absolute -bottom-20 -right-20 w-40 h-40 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-500"
-                style={{ background: q.color, filter: "blur(40px)" }}
-              />
-              <q.icon size={28} style={{ color: q.color }} className="mb-4 relative" />
-              <h3 className="text-xl font-bold mb-2 relative" style={{ fontFamily: "var(--font-orbitron), monospace", color: q.color }}>
                 {q.title}
               </h3>
-              <p className="text-sm mb-4 relative" style={{ color: "var(--sl-text-muted)" }}>
+              <p
+                className="text-sm leading-relaxed mb-6"
+                style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
+              >
                 {q.desc}
               </p>
-              <div className="space-y-1.5 pt-3 border-t relative" style={{ borderColor: "var(--sl-border)" }}>
-                {q.examples.map((ex) => (
-                  <div key={ex} className="text-xs font-mono flex items-center gap-2" style={{ color: "var(--sl-text-dim)" }}>
-                    <span style={{ color: q.color }}>›</span>
-                    {ex}
+
+              {/* XP reward */}
+              <div
+                className="flex items-center gap-3 mb-6 px-4 py-3"
+                style={{
+                  background: `${q.color}05`,
+                  border: `1px solid ${q.color}1a`,
+                }}
+              >
+                <span
+                  className="text-[7px] uppercase tracking-[0.35em]"
+                  style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                >
+                  Reward
+                </span>
+                <span
+                  className="tabular-nums text-xl font-bold"
+                  style={{
+                    color: q.color,
+                    fontFamily: OF,
+                    textShadow: `0 0 18px ${q.color}55`,
+                  }}
+                >
+                  +{q.xp} XP
+                </span>
+              </div>
+
+              <div
+                className="space-y-2.5 pt-5 border-t"
+                style={{ borderColor: "var(--sl-border)" }}
+              >
+                <p
+                  className="text-[7px] uppercase tracking-[0.35em] mb-3"
+                  style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+                >
+                  Objectives
+                </p>
+                {q.examples.map(ex => (
+                  <div key={ex} className="flex items-center gap-3">
+                    <div
+                      className="w-1 h-1 shrink-0"
+                      style={{ background: q.color, opacity: 0.6 }}
+                    />
+                    <span
+                      className="text-xs"
+                      style={{ color: "var(--sl-text-dim)", fontFamily: IF, fontWeight: 300 }}
+                    >
+                      {ex}
+                    </span>
                   </div>
                 ))}
               </div>
+
+              <div
+                className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{
+                  background: `linear-gradient(90deg, transparent, ${q.color}55, transparent)`,
+                }}
+              />
             </motion.div>
           ))}
         </div>
@@ -1085,207 +1281,329 @@ function QuestSection() {
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────────
-   LIVE BUILD — IG counter
-   ────────────────────────────────────────────────────────────────────────── */
+// ─── System Status ────────────────────────────────────────────────────────────
 
-function LiveBuildSection() {
-  const ref = useRef<HTMLElement>(null);
-  const counterRef = useRef<HTMLDivElement>(null);
+function StatsSection() {
+  const stats = [
+    {
+      display: "6",
+      label: "Rank Tiers",
+      sub: "E · D · C · B · A · S",
+      accent: "var(--rank-s)",
+    },
+    {
+      display: "3+",
+      label: "Quest Types",
+      sub: "Daily · Weekly · Permanent",
+      accent: "var(--sl-cyan)",
+    },
+    {
+      display: "100%",
+      label: "Growth Return",
+      sub: "Every rep counts.",
+      accent: "var(--rank-b)",
+    },
+  ];
+
+  return (
+    <section
+      style={{ borderTop: "1px solid var(--sl-border)", borderBottom: "1px solid var(--sl-border)" }}
+    >
+      {/* System status header strip */}
+      <div
+        className="max-w-6xl mx-auto px-6"
+        style={{ borderBottom: "1px solid var(--sl-border)" }}
+      >
+        <div className="flex items-center gap-4 py-3">
+          <span
+            className="relative flex h-1.5 w-1.5"
+          >
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+          </span>
+          <span
+            className="text-[8px] uppercase tracking-[0.4em]"
+            style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+          >
+            System Status · Online · All Nodes Active
+          </span>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          {stats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: i * 0.1 }}
+              className="py-14 px-8 text-center border-b md:border-b-0 md:border-r last:border-0"
+              style={{ borderColor: "var(--sl-border)" }}
+            >
+              <div
+                className="uppercase leading-none mb-4 tabular-nums"
+                style={{
+                  fontFamily: DF,
+                  fontSize: "clamp(4rem, 9vw, 7rem)",
+                  color: stat.accent,
+                  textShadow: `0 0 50px ${stat.accent}28`,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {stat.display}
+              </div>
+              <p
+                className="text-[8px] uppercase tracking-[0.4em] mb-2"
+                style={{ fontFamily: OF, color: "var(--sl-text-muted)" }}
+              >
+                {stat.label}
+              </p>
+              <p
+                className="text-xs"
+                style={{ color: "var(--sl-text-dim)", fontFamily: IF, fontWeight: 300 }}
+              >
+                {stat.sub}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+
+const MARQUEE_TEXT = "ARISE  ·  HUNT  ·  ASCEND  ·  GRIND  ·  ";
+
+function SiteFooter() {
+  const footerRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<HlsType | null>(null);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    import("hls.js").then(({ default: Hls }) => {
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hlsRef.current = hls;
+        hls.loadSource(HLS_SRC);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = HLS_SRC;
+      }
+    });
+    return () => { hlsRef.current?.destroy(); hlsRef.current = null; };
+  }, []);
 
   useGSAP(
     () => {
-      const counter = counterRef.current;
-      if (!counter) return;
-      const target = { val: 0 };
-      gsap.to(target, {
-        val: 7000,
-        duration: 2,
-        ease: "power3.out",
-        scrollTrigger: { trigger: counter, start: "top 80%" },
-        onUpdate: () => {
-          counter.textContent = Math.floor(target.val).toLocaleString();
-        },
-      });
+      const el = marqueeRef.current;
+      if (!el) return;
+      gsap.to(el, { xPercent: -50, ease: "none", duration: 40, repeat: -1 });
     },
-    { scope: ref }
+    { scope: footerRef }
   );
 
   return (
-    <section ref={ref} className="relative py-32 overflow-hidden">
+    <footer ref={footerRef} className="relative overflow-hidden pt-24 pb-10">
+      {/* Flipped video bg */}
       <div
-        className="absolute inset-0 opacity-15 bg-cover bg-center"
-        style={{ backgroundImage: "url('/sl/shadow-army.jpg')" }}
+        className="absolute inset-0 overflow-hidden"
+        style={{ transform: "scaleY(-1)" }}
+      >
+        <video
+          ref={videoRef}
+          autoPlay muted loop playsInline
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-full min-h-full object-cover"
+        />
+      </div>
+      <div className="absolute inset-0 bg-black/70" />
+      <div
+        className="absolute top-0 left-0 right-0 h-40"
+        style={{ background: "linear-gradient(to bottom, var(--sl-bg), transparent)" }}
       />
-      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, var(--sl-bg) 0%, transparent 30%, transparent 70%, var(--sl-bg) 100%)" }} />
 
-      <div className="relative max-w-4xl mx-auto px-6 text-center">
-        <div className="text-xs font-mono uppercase tracking-[0.4em] mb-4" style={{ color: "var(--sl-cyan)" }}>
-          ◈ BUILT IN PUBLIC
+      {/* Marquee */}
+      <div className="overflow-hidden mb-16 relative">
+        <div
+          ref={marqueeRef}
+          className="flex whitespace-nowrap"
+          style={{ width: "max-content" }}
+        >
+          {Array(10)
+            .fill(MARQUEE_TEXT)
+            .map((t, i) => (
+              <span
+                key={i}
+                className="inline-block px-4 uppercase select-none"
+                style={{
+                  fontFamily: DF,
+                  fontSize: "clamp(3rem, 8vw, 6rem)",
+                  color: "rgba(255,255,255,0.07)",
+                  lineHeight: 1,
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {t}
+              </span>
+            ))}
         </div>
-        <h2 className="text-4xl md:text-6xl lg:text-7xl font-black leading-[0.9] tracking-tight mb-6" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-          THE SHADOW ARMY GROWS
-        </h2>
-        <p className="text-base md:text-lg mb-12 max-w-2xl mx-auto" style={{ color: "var(--sl-text-muted)" }}>
-          Every line of code, every quest design, every level-up — shipped live on Instagram.
-          Join the hunters watching this System come to life.
-        </p>
+      </div>
 
-        <div className="flex items-center justify-center gap-8 mb-12">
-          <div>
-            <div
-              ref={counterRef}
-              className="text-5xl md:text-7xl font-black tabular-nums"
-              style={{
-                fontFamily: "var(--font-orbitron), monospace",
-                color: "var(--sl-cyan)",
-                textShadow: "0 0 30px rgba(0,212,255,0.4)",
-              }}
-            >
-              0
-            </div>
-            <div className="text-xs font-mono uppercase tracking-widest mt-2" style={{ color: "var(--sl-text-muted)" }}>
-              Hunters following
-            </div>
-          </div>
-        </div>
-
-        <motion.a
-          href="https://instagram.com/umartriedcoding"
-          target="_blank"
-          rel="noopener noreferrer"
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
-          className="inline-flex items-center gap-3 px-6 py-4 rounded-lg font-mono font-bold uppercase tracking-widest text-sm"
+      {/* Final CTA panel */}
+      <div className="relative max-w-3xl mx-auto px-6 text-center mb-20">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.9 }}
+          className="px-8 py-14"
           style={{
-            background: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)",
-            color: "#fff",
-            boxShadow: "0 0 30px rgba(253,29,29,0.3)",
+            border: "1px solid var(--sl-border-bright)",
+            background: "rgba(0,212,255,0.015)",
           }}
         >
-          <InstagramIcon size={18} />
-          Follow the Build
-        </motion.a>
-      </div>
-    </section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   FINAL CTA — full-color block with embedded waitlist
-   ────────────────────────────────────────────────────────────────────────── */
-
-function FinalCta() {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const headlineY = useTransform(scrollYProgress, [0, 1], [40, -40]);
-  const glyphY = useTransform(scrollYProgress, [0, 1], [80, -80]);
-
-  useGSAP(
-    () => {
-      gsap.fromTo(
-        "[data-final-headline]",
-        { opacity: 0, scale: 0.85 },
-        {
-          opacity: 1,
-          scale: 1,
-          duration: 1,
-          ease: "power3.out",
-          scrollTrigger: { trigger: ref.current, start: "top 70%" },
-        }
-      );
-    },
-    { scope: ref }
-  );
-
-  return (
-    <section ref={ref} className="relative py-24 md:py-32 overflow-hidden px-4 md:px-8">
-      <div
-        className="relative max-w-7xl mx-auto rounded-3xl overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, #1a0b3a 0%, #3a1a5a 40%, #0a2a4a 100%)",
-          border: "1px solid rgba(0,212,255,0.25)",
-          boxShadow: "0 40px 100px rgba(123,47,255,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
-        }}
-      >
-        {/* Parallax gate image */}
-        <div
-          className="absolute inset-0 opacity-30 bg-cover bg-center"
-          style={{ backgroundImage: "url('/sl/gate.jpg')" }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 0%, rgba(26,11,58,0.6) 70%, rgba(26,11,58,0.95) 100%)",
-          }}
-        />
-
-        {/* Floating glyphs */}
-        <motion.div style={{ y: glyphY }} className="absolute top-10 right-10 hidden md:block opacity-60">
-          <RankDotsGlyph size={64} delay={0.2} />
-        </motion.div>
-        <motion.div style={{ y: glyphY }} className="absolute bottom-10 left-10 hidden md:block opacity-40">
-          <RankDotsGlyph size={44} delay={0.4} />
-        </motion.div>
-
-        <div className="relative py-24 md:py-36 px-6 md:px-12 text-center">
-          <Skull size={48} style={{ color: "var(--sl-cyan)", margin: "0 auto 1.5rem" }} />
-
-          <motion.h2
-            data-final-headline
-            className="text-5xl md:text-7xl lg:text-8xl font-black mb-8 leading-[0.85] tracking-tight"
+          {/* Corner accents */}
+          <div
+            className="absolute top-0 left-0 w-6 h-6 pointer-events-none"
             style={{
-              y: headlineY,
-              fontFamily: "var(--font-orbitron), monospace",
-              textShadow: "0 0 60px rgba(0,212,255,0.4)",
+              borderTop: "1px solid var(--sl-cyan)",
+              borderLeft: "1px solid var(--sl-cyan)",
+            }}
+          />
+          <div
+            className="absolute top-0 right-0 w-6 h-6 pointer-events-none"
+            style={{
+              borderTop: "1px solid var(--sl-cyan)",
+              borderRight: "1px solid var(--sl-cyan)",
+            }}
+          />
+          <div
+            className="absolute bottom-0 left-0 w-6 h-6 pointer-events-none"
+            style={{
+              borderBottom: "1px solid var(--sl-cyan)",
+              borderLeft: "1px solid var(--sl-cyan)",
+            }}
+          />
+          <div
+            className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none"
+            style={{
+              borderBottom: "1px solid var(--sl-cyan)",
+              borderRight: "1px solid var(--sl-cyan)",
+            }}
+          />
+
+          <p
+            className="text-[8px] uppercase tracking-[0.5em] mb-6"
+            style={{ color: "var(--sl-cyan)", fontFamily: OF }}
+          >
+            System · Final Notice
+          </p>
+          <h2
+            className="uppercase mb-6 leading-[0.88]"
+            style={{
+              fontFamily: DF,
+              fontSize: "clamp(2.2rem, 7vw, 5rem)",
+              color: "var(--sl-text)",
+              letterSpacing: "0.04em",
             }}
           >
-            YOUR NEXT
+            The System
             <br />
-            <span style={{ color: "var(--sl-cyan)" }}>LEVEL-UP</span>
-            <br />
-            STARTS NOW
-          </motion.h2>
-
-          <p className="text-lg md:text-xl mb-10 max-w-xl mx-auto" style={{ color: "var(--sl-text)" }}>
-            Be among the first hunters to receive a System. Early access coming soon.
+            <span style={{ color: "var(--sl-cyan)" }}>Is Waiting.</span>
+          </h2>
+          <p
+            className="text-sm mb-10 max-w-md mx-auto leading-relaxed"
+            style={{ color: "var(--sl-text-muted)", fontFamily: IF, fontWeight: 300 }}
+          >
+            You have been selected. The gates are open. Will you answer the call, or remain at
+            E-Rank forever?
           </p>
-
-          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest" style={{ color: "#fbbf24" }}>
-            <Flame size={12} />
-            Founding member pricing · First 100 hunters only
-          </div>
-        </div>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-3 px-8 py-4 transition-all hover:opacity-80"
+            style={{
+              background: "rgba(0,212,255,0.08)",
+              border: "1px solid rgba(0,212,255,0.35)",
+              color: "var(--sl-cyan)",
+              fontFamily: OF,
+              fontSize: "0.65rem",
+              letterSpacing: "0.22em",
+              textDecoration: "none",
+            }}
+          >
+            ARISE · ENTER SYSTEM ↗
+          </Link>
+        </motion.div>
       </div>
-    </section>
-  );
-}
 
-/* ──────────────────────────────────────────────────────────────────────────
-   FOOTER
-   ────────────────────────────────────────────────────────────────────────── */
-
-function Footer() {
-  return (
-    <footer className="relative py-10 border-t" style={{ borderColor: "var(--sl-border)" }}>
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Crown size={16} style={{ color: "var(--sl-cyan)" }} />
-          <span className="font-bold tracking-widest text-sm" style={{ fontFamily: "var(--font-orbitron), monospace" }}>
-            SYSTEM
+      {/* Contact */}
+      <div className="relative text-center mb-16 px-6">
+        <p
+          className="text-[8px] uppercase tracking-[0.45em] mb-4"
+          style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+        >
+          Direct Contact
+        </p>
+        <motion.a
+          href="mailto:umartriedcoding@gmail.com"
+          whileHover={{ opacity: 0.65 }}
+          className="group inline-flex items-center gap-3 uppercase"
+          style={{
+            fontFamily: DF,
+            fontSize: "clamp(1rem, 3.5vw, 2.4rem)",
+            color: "var(--sl-text)",
+            textDecoration: "none",
+            letterSpacing: "0.04em",
+          }}
+        >
+          umartriedcoding@gmail.com
+          <span
+            className="not-italic transition-transform group-hover:translate-x-1 group-hover:-translate-y-1"
+            style={{ color: "var(--sl-cyan)" }}
+          >
+            ↗
           </span>
-          <span className="text-xs font-mono ml-2" style={{ color: "var(--sl-text-dim)" }}>
-            · Built in public
+        </motion.a>
+      </div>
+
+      {/* Footer bar */}
+      <div
+        className="relative max-w-7xl mx-auto px-6 pt-8 flex flex-col md:flex-row items-center justify-between gap-5 border-t"
+        style={{ borderColor: "rgba(255,255,255,0.06)" }}
+      >
+        <span
+          className="uppercase text-sm tracking-[0.18em]"
+          style={{ fontFamily: DF, color: "var(--sl-text)" }}
+        >
+          System
+        </span>
+
+        <div className="flex items-center gap-3">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75" />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500" />
+          </span>
+          <span
+            className="text-[8px] uppercase tracking-[0.2em]"
+            style={{ color: "var(--sl-text-muted)", fontFamily: OF }}
+          >
+            Hunters Online
           </span>
         </div>
-        <div className="text-xs font-mono" style={{ color: "var(--sl-text-dim)" }}>
-          © {new Date().getFullYear()} Solo Leveling System · Inspired by the manhwa
-        </div>
+
+        <p
+          className="text-[8px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--sl-text-dim)", fontFamily: OF }}
+        >
+          <Flame size={10} className="inline mr-1.5" style={{ color: "#fbbf24" }} />
+          © {new Date().getFullYear()} Solo Leveling System
+        </p>
       </div>
     </footer>
   );

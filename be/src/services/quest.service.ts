@@ -4,6 +4,9 @@ import { rankfromLevel, streakMultipler, xpToNextLevel } from "../lib/xp.js";
 
 const RANK_ORDER = ["E", "D", "C", "B", "A", "S"];
 
+const MAX_SLOTS_SIDE_QUESTS = 2;
+const DAILY_TRIGGER_THRESHOLD = 3;
+
 function getExpiresAt(type: string): Date | null {
   const now = new Date();
   if (type === "DAILY") {
@@ -18,6 +21,12 @@ function getExpiresAt(type: string): Date | null {
     end.setHours(23, 59, 59, 999);
     return end;
   }
+  if (type === "SIDE") {
+    const end = new Date(now);
+    end.setHours(end.getHours() + 48);
+    return end;
+  }
+
   return null; // PERMANENT
 }
 
@@ -127,11 +136,143 @@ export async function assignDailyQuests(userId: number) {
       prisma.user_quests.create({
         data: { user_id: userId, quest_id: q.id, expires_at: expiresAt },
         include: { quest: true },
-      })
-    )
+      }),
+    ),
   );
 
   return { assigned, message: `${assigned.length} daily quests assigned` };
+}
+
+export async function assignWeeklyQuests(userId: number) {
+  await expireOverdueQuests(userId);
+
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, "User not found");
+
+  const userRankIndex = RANK_ORDER.indexOf(user.rank ?? "E");
+  const accessibleRanks = RANK_ORDER.slice(0, userRankIndex + 1);
+
+  // start of the current week (Monday 00:00:00)
+  const startOfWeek = new Date();
+  const day = startOfWeek.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  startOfWeek.setDate(startOfWeek.getDate() + diffToMonday);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const alreadyAssigned = await prisma.user_quests.findMany({
+    where: {
+      user_id: userId,
+      assigned_at: { gte: startOfWeek },
+      quest: { type: "WEEKLY" },
+    },
+    select: { quest_id: true },
+  });
+  const assignedIds = new Set(alreadyAssigned.map((uq) => uq.quest_id));
+
+  const available = await prisma.quests.findMany({
+    where: {
+      type: "WEEKLY",
+      is_active: true,
+      rank: { in: accessibleRanks },
+      id: { notIn: assignedIds.size > 0 ? [...assignedIds] : undefined },
+    },
+  });
+
+  if (available.length === 0) {
+    return { assigned: [], message: "No new weekly quests available" };
+  }
+
+  const toAssign = available.slice(0, 3);
+  const expiresAt = getExpiresAt("WEEKLY");
+
+  const assigned = await prisma.$transaction(
+    toAssign.map((q) =>
+      prisma.user_quests.create({
+        data: { user_id: userId, quest_id: q.id, expires_at: expiresAt },
+        include: { quest: true },
+      }),
+    ),
+  );
+
+  return { assigned, message: `${assigned.length} weekly quests assigned` };
+}
+
+export async function assignSideQuests(userId: number) {
+  await expireOverdueQuests(userId);
+
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, "User Not Found");
+
+  // checking slots and coutning active quests
+  const activeSlots = await prisma.user_quests.count({
+    where: { user_id: userId, status: "ACTIVE", quest: { type: "SIDE" } },
+  });
+
+  const openSlots = MAX_SLOTS_SIDE_QUESTS - activeSlots;
+  if (openSlots <= 0) {
+    return {
+      assigned: [],
+      message: "Side Quest Slots are full",
+      slots: { active: activeSlots, max: MAX_SLOTS_SIDE_QUESTS },
+    };
+  }
+
+  const userRankIndex = RANK_ORDER.indexOf(user.rank ?? "E");
+  const accessbleRanks = RANK_ORDER.slice(0, userRankIndex + 1);
+
+  // exclude quests assigned in the last 7 days to avoid repeats
+  const since7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentlyAssigned = await prisma.user_quests.findMany({
+    where: {
+      user_id: userId,
+      quest: { type: "SIDE" },
+      assigned_at: { gte: since7Days },
+    },
+  });
+
+  const excludeIds = recentlyAssigned.map((uq) => uq.quest_id);
+
+  const available = await prisma.quests.findMany({
+    where: {
+      type: "SIDE",
+      is_active: true,
+      rank: { in: accessbleRanks },
+      ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
+    },
+  });
+
+  if (available.length === 0) {
+    return {
+      assigned: [],
+      message: "No Side Quests available",
+      slots: { active: activeSlots, max: MAX_SLOTS_SIDE_QUESTS },
+    };
+  }
+
+  // shuffle
+
+  const shuffled = available
+    .sort(() => Math.random() - 0.5)
+    .slice(0, openSlots);
+  const expiresAt = getExpiresAt("SIDE");
+
+  const assigned = await prisma.$transaction(
+    shuffled.map((q) =>
+      prisma.user_quests.create({
+        data: { user_id: userId, quest_id: q.id, expires_at: expiresAt },
+        include: { quest: true },
+      }),
+    ),
+  );
+
+  return {
+    assigned,
+    message: `${assigned.length} side quests assigned`,
+    slots: {
+      active: activeSlots + assigned.length,
+      max: MAX_SLOTS_SIDE_QUESTS,
+    },
+  };
 }
 
 export async function completeQuest(userId: number, userQuestId: number) {
@@ -145,7 +286,10 @@ export async function completeQuest(userId: number, userQuestId: number) {
   }
 
   if (userQuest.status !== "ACTIVE") {
-    throw new AppError(400, `Quest is already ${userQuest.status.toLowerCase()}`);
+    throw new AppError(
+      400,
+      `Quest is already ${userQuest.status.toLowerCase()}`,
+    );
   }
 
   await prisma.user_quests.update({
@@ -202,11 +346,33 @@ export async function completeQuest(userId: number, userQuestId: number) {
   });
 
   const { password, ...rest } = updatedUser;
+
+  let triggered_side_quest = null;
+  if (userQuest.quest.type === "DAILY") {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const dailyCompletedToday = await prisma.user_quests.count({
+      where: {
+        user_id: userId,
+        status: "COMPLETED",
+        completed_at: { gte: startOfDay },
+        quest: { type: "DAILY" },
+      },
+    });
+    if (dailyCompletedToday === DAILY_TRIGGER_THRESHOLD) {
+      const sideResult = await assignSideQuests(userId);
+      if (sideResult.assigned.length > 0) {
+        triggered_side_quest = sideResult.assigned[0];
+      }
+    }
+  }
+
   return {
     xp_gained: xpGained,
     streak_multiplier: multiplier,
     leveled_up: leveledUp,
     streak_days: newStreak,
     user: rest,
+    triggered_side_quest,
   };
 }

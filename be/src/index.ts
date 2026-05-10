@@ -5,7 +5,7 @@ import authRouter from "./routes/auth.route.js";
 import questRouter from "./routes/quest.route.js";
 import userRouter from "./routes/user.route.js";
 import cron from "node-cron";
-import { runNightlyCron } from "./services/cron.service.js";
+import { runNightlyCron, runWeeklyCron } from "./services/cron.service.js";
 
 const app = express();
 app.use(
@@ -25,6 +25,15 @@ function startCronJob() {
       await runNightlyCron();
     } catch (err) {
       console.error("Nightly cron failed", err);
+    }
+  });
+
+  // Monday at 00:00 — assign fresh weekly quests to active users.
+  cron.schedule("0 0 * * 1", async () => {
+    try {
+      await runWeeklyCron();
+    } catch (err) {
+      console.error("Weekly cron failed", err);
     }
   });
 }

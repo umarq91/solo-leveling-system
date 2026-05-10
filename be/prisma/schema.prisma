@@ -12,6 +12,7 @@ enum QuestType {
   DAILY
   WEEKLY
   PERMANENT
+  SIDE
 }
 
 enum AspectType {

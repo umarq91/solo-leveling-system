@@ -53,6 +53,12 @@ export const api = {
       request<{ assigned: UserQuest[]; message: string }>("/quests/daily", {
         method: "POST",
       }),
+    assignWeekly: () =>
+      request<{ assigned: UserQuest[]; message: string }>("/quests/weekly", {
+        method: "POST",
+      }),
+    assignSide: () =>
+      request<SideQuestResponse>("/quests/side", { method: "POST" }),
     complete: (userQuestId: number) =>
       request<CompleteQuestResponse>(`/quests/${userQuestId}/complete`, {
         method: "POST",
@@ -64,7 +70,7 @@ export const api = {
 
 export type Rank = "E" | "D" | "C" | "B" | "A" | "S";
 export type Aspect = "FITNESS" | "DESCIPLINE" | "CAREER" | "INTELLECT" | "SOCIAL";
-export type QuestType = "DAILY" | "WEEKLY" | "PERMANENT";
+export type QuestType = "DAILY" | "WEEKLY" | "PERMANENT" | "SIDE";
 export type QuestStatus = "ACTIVE" | "COMPLETED" | "FAILED" | "EXPIRED";
 
 export interface User {
@@ -127,12 +133,19 @@ export interface HeatmapResponse {
   };
 }
 
+export interface SideQuestResponse {
+  assigned: UserQuest[];
+  message: string;
+  slots: { active: number; max: number };
+}
+
 export interface CompleteQuestResponse {
   xp_gained: number;
   streak_multiplier: number;
   leveled_up: boolean;
   streak_days: number;
   user: User;
+  triggered_side_quest?: UserQuest;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

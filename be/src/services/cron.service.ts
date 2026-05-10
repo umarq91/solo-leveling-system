@@ -1,5 +1,5 @@
 import prisma from "../lib/prisma.js";
-import { assignDailyQuests } from "./quest.service.js";
+import { assignDailyQuests, assignWeeklyQuests } from "./quest.service.js";
 
 export async function processUser(userId: number) {
   const now = new Date();
@@ -102,7 +102,30 @@ export async function runNightlyCron() {
     ${totalExpired} users Expired,
     ${totalPenalized} users penalized,
     ${totalAssigned} new Daily quest assigned
-    
-    
     `);
+}
+
+export async function runWeeklyCron() {
+  const cutOff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const users = await prisma.users.findMany({
+    where: { last_active_at: { gte: cutOff } },
+    select: { id: true },
+  });
+
+  if (users.length === 0) {
+    console.log("WEEKLY CRON: no active users");
+    return;
+  }
+
+  let totalAssigned = 0;
+  for (const { id } of users) {
+    try {
+      const { assigned } = await assignWeeklyQuests(id);
+      totalAssigned += assigned.length;
+    } catch (err) {
+      console.error(`Weekly cron failed for user ${id}`, err);
+    }
+  }
+
+  console.log(`WEEKLY CRON COMPLETE: ${users.length} users processed, ${totalAssigned} weekly quests assigned`);
 }

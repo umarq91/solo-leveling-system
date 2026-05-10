@@ -192,6 +192,45 @@ const quests = [
   // S-Rank
   { title: "Move the Room", description: "Lead or speak to an audience and demonstrably shift how they think or act.", type: "DAILY" as const, aspect: "SOCIAL" as const, rank: "S", xp_reward: 3500 },
   { title: "1,000 People Impacted", description: "Create something — a talk, a community, a project — that measurably improves 1,000 lives.", type: "PERMANENT" as const, aspect: "SOCIAL" as const, rank: "S", xp_reward: 75000 },
+
+  // ════════════════════════════════════════════════════════
+  //  SIDE QUESTS — bonus objectives, 48h window, higher XP
+  // ════════════════════════════════════════════════════════
+
+  // E-Rank
+  { title: "Cold Shower", description: "End your shower with at least 2 minutes of cold water. No gradual transition — full cold.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "E", xp_reward: 180 },
+  { title: "No Screen After 9PM", description: "Zero screens from 9PM until you sleep. Audiobook and journaling allowed.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "E", xp_reward: 160 },
+  { title: "Talk to a Stranger", description: "Have a genuine conversation with someone you have never spoken to before.", type: "SIDE" as const, aspect: "SOCIAL" as const, rank: "E", xp_reward: 200 },
+  { title: "Write 500 Words", description: "Write 500 words on anything — journal, story, opinion. No AI. No edits. Just write.", type: "SIDE" as const, aspect: "INTELLECT" as const, rank: "E", xp_reward: 170 },
+  { title: "Sprint Intervals", description: "Complete 8 x 100m sprint intervals with 90 seconds rest between each.", type: "SIDE" as const, aspect: "FITNESS" as const, rank: "E", xp_reward: 210 },
+  { title: "Speed Run Your Work", description: "Complete your single most important task in half the time you normally would.", type: "SIDE" as const, aspect: "CAREER" as const, rank: "E", xp_reward: 190 },
+
+  // D-Rank
+  { title: "Sunrise Ritual", description: "Wake up before sunrise and spend the first 30 minutes in deliberate silence.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "D", xp_reward: 380 },
+  { title: "Fasted Workout", description: "Complete a full workout before eating anything. Water only.", type: "SIDE" as const, aspect: "FITNESS" as const, rank: "D", xp_reward: 420 },
+  { title: "Teach What You Know", description: "Spend 30 minutes teaching someone a skill you have — in person or over a call.", type: "SIDE" as const, aspect: "SOCIAL" as const, rank: "D", xp_reward: 400 },
+  { title: "Read a Research Paper", description: "Read and summarise a research paper in your field. Write at least 200 words of notes.", type: "SIDE" as const, aspect: "INTELLECT" as const, rank: "D", xp_reward: 390 },
+  { title: "Ship in 2 Hours", description: "Build and ship something small — a script, a tool, a feature — in under 2 hours.", type: "SIDE" as const, aspect: "CAREER" as const, rank: "D", xp_reward: 450 },
+
+  // C-Rank
+  { title: "The Uncomfortable Conversation", description: "Have a difficult conversation you have been avoiding. No more delay.", type: "SIDE" as const, aspect: "SOCIAL" as const, rank: "C", xp_reward: 750 },
+  { title: "Ego-Free Day", description: "Do one thing today where you help someone with zero expectation of credit or recognition.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "C", xp_reward: 700 },
+  { title: "Full Body Max Effort", description: "Push yourself to a personal limit — max reps, max distance, or max weight. Log it.", type: "SIDE" as const, aspect: "FITNESS" as const, rank: "C", xp_reward: 800 },
+  { title: "Teach Publicly", description: "Post a public thread, video, or article that teaches something you know well.", type: "SIDE" as const, aspect: "CAREER" as const, rank: "C", xp_reward: 780 },
+  { title: "Debate Mode", description: "Identify a belief you hold strongly and spend 45 minutes finding the strongest counterarguments.", type: "SIDE" as const, aspect: "INTELLECT" as const, rank: "C", xp_reward: 720 },
+
+  // B-Rank
+  { title: "24-Hour Digital Detox", description: "No internet for 24 hours. Phone on airplane mode. Emerge with a written reflection.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "B", xp_reward: 1500 },
+  { title: "Mentor Session", description: "Run a structured 60-minute session mentoring someone on a skill you have mastered.", type: "SIDE" as const, aspect: "SOCIAL" as const, rank: "B", xp_reward: 1400 },
+  { title: "Zero-to-Shipped", description: "Conceive, build, and publish a fully working project from scratch within 48 hours.", type: "SIDE" as const, aspect: "CAREER" as const, rank: "B", xp_reward: 1800 },
+  { title: "Maximum Threshold", description: "Train at your absolute physical limit for 90 minutes. Track every set and rep.", type: "SIDE" as const, aspect: "FITNESS" as const, rank: "B", xp_reward: 1600 },
+
+  // A-Rank
+  { title: "Thought Experiment", description: "Spend 2 hours reasoning through a hard problem you have never solved. Write your conclusions.", type: "SIDE" as const, aspect: "INTELLECT" as const, rank: "A", xp_reward: 3000 },
+  { title: "Isolation Sprint", description: "Go fully off-grid for 48 hours with a single goal. No distractions. Emerge with results.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "A", xp_reward: 3500 },
+
+  // S-Rank
+  { title: "The Shadow Monarch Challenge", description: "48 hours. Maximum output across all five aspects. No shortcuts. No excuses. Document everything.", type: "SIDE" as const, aspect: "DESCIPLINE" as const, rank: "S", xp_reward: 8000 },
 ];
 
 async function main() {

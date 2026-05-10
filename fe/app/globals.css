@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-orbitron: var(--font-orbitron);
+  --font-display: var(--font-instrument);
 }
 
 :root {
@@ -36,7 +37,7 @@ html { scroll-behavior: smooth; }
 body {
   background-color: var(--sl-bg);
   color: var(--sl-text);
-  font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-family: var(--font-inter), Inter, Arial, sans-serif;
   min-height: 100vh;
 }
 
@@ -45,7 +46,32 @@ body {
 ::-webkit-scrollbar-track { background: var(--sl-surface); }
 ::-webkit-scrollbar-thumb { background: var(--sl-border-bright); border-radius: 2px; }
 
+/* ── Accent gradient ── */
+.accent-gradient {
+  background: linear-gradient(90deg, #89AACC 0%, #4E85BF 100%);
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 /* ── Animations ── */
+@keyframes scroll-down {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(350%); }
+}
+
+.animate-scroll-down {
+  animation: scroll-down 1.5s ease-in-out infinite;
+}
+
+@keyframes role-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes xp-fill {
   from { width: 0%; }
 }

@@ -14,7 +14,12 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(npx next *)",
       "Bash(gh repo *)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(git clone *)",
+      "Bash(npm --version)",
+      "Bash(uipro init *)",
+      "Bash(npm i *)"
     ]
   }
 }
