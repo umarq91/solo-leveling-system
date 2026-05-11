@@ -277,54 +277,14 @@ export default function ProfilePage() {
 
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatTile
-          icon={<CheckCircle size={18} />}
-          label="Quests Done"
-          value={loading ? "..." : stats?.completed_total ?? 0}
-          color="#34d399"
-        />
-        <StatTile
-          icon={<Zap size={18} />}
-          label="Total XP"
-          value={loading ? "..." : user.total_xp.toLocaleString()}
-          color="var(--sl-cyan)"
-        />
-        <StatTile
-          icon={<Flame size={18} />}
-          label="Best Streak"
-          value={loading ? "..." : `${user.best_streak ?? 0}d`}
-          color="#fbbf24"
-        />
-        <StatTile
-          icon={<Activity size={18} />}
-          label="Active Now"
-          value={loading ? "..." : stats?.active_quests ?? 0}
-          color="#a78bfa"
-        />
-        <StatTile
-          icon={<Target size={18} />}
-          label="Completion"
-          value={loading ? "..." : stats?.completion_rate != null ? `${stats.completion_rate}%` : "—"}
-          color="#f97316"
-        />
-        <StatTile
-          icon={<CalendarDays size={18} />}
-          label="This Week"
-          value={loading ? "..." : stats?.quests_this_week ?? 0}
-          color="#60a5fa"
-        />
-        <StatTile
-          icon={<TrendingUp size={18} />}
-          label="Days Active"
-          value={loading ? "..." : heatmap?.totals.active_days ?? 0}
-          color="#34d399"
-        />
-        <StatTile
-          icon={<Shield size={18} />}
-          label="Current Streak"
-          value={loading ? "..." : `${user.streak_days}d`}
-          color="#fbbf24"
-        />
+        <StatTile icon={<CheckCircle size={18} />} label="Quests Done"    value={stats?.completed_total ?? 0}                                    color="#34d399"        loading={loading} />
+        <StatTile icon={<Zap size={18} />}         label="Total XP"       value={user.total_xp.toLocaleString()}                                 color="var(--sl-cyan)"                   />
+        <StatTile icon={<Flame size={18} />}       label="Best Streak"    value={`${user.best_streak ?? 0}d`}                                    color="#fbbf24"                          />
+        <StatTile icon={<Activity size={18} />}    label="Active Now"     value={stats?.active_quests ?? 0}                                      color="#a78bfa"        loading={loading} />
+        <StatTile icon={<Target size={18} />}      label="Completion"     value={stats?.completion_rate != null ? `${stats.completion_rate}%` : "—"} color="#f97316"   loading={loading} />
+        <StatTile icon={<CalendarDays size={18} />} label="This Week"     value={stats?.quests_this_week ?? 0}                                   color="#60a5fa"        loading={loading} />
+        <StatTile icon={<TrendingUp size={18} />}  label="Days Active"    value={heatmap?.totals.active_days ?? 0}                               color="#34d399"        loading={loading} />
+        <StatTile icon={<Shield size={18} />}      label="Current Streak" value={`${user.streak_days}d`}                                         color="#fbbf24"                          />
       </div>
 
       {/* ── Quest type breakdown ── */}
@@ -339,8 +299,12 @@ export default function ProfilePage() {
 
         {loading ? (
           <div className="space-y-3">
-            {QUEST_TYPES.map(({ type }) => (
-              <div key={type} className="h-8 rounded animate-pulse" style={{ background: "var(--sl-surface-2)" }} />
+            {QUEST_TYPES.map(({ type }, i) => (
+              <div key={type} className="flex items-center gap-3">
+                <div className="skeleton-shimmer h-3 w-20 rounded shrink-0" style={{ animationDelay: `${i * 0.1}s` }} />
+                <div className="skeleton-shimmer h-2 flex-1 rounded-full" style={{ animationDelay: `${i * 0.1 + 0.05}s` }} />
+                <div className="skeleton-shimmer h-3 w-6 rounded" style={{ animationDelay: `${i * 0.1 + 0.08}s` }} />
+              </div>
             ))}
           </div>
         ) : (
@@ -392,8 +356,14 @@ export default function ProfilePage() {
 
         {loading ? (
           <div className="space-y-4">
-            {ASPECTS.map((a) => (
-              <div key={a} className="h-10 rounded animate-pulse" style={{ background: "var(--sl-surface-2)" }} />
+            {ASPECTS.map((a, i) => (
+              <div key={a}>
+                <div className="flex justify-between items-center mb-1.5">
+                  <div className="skeleton-shimmer h-2.5 w-20 rounded" style={{ animationDelay: `${i * 0.09}s` }} />
+                  <div className="skeleton-shimmer h-2.5 w-24 rounded" style={{ animationDelay: `${i * 0.09 + 0.05}s` }} />
+                </div>
+                <div className="skeleton-shimmer h-2 rounded-full" style={{ animationDelay: `${i * 0.09 + 0.08}s` }} />
+              </div>
             ))}
           </div>
         ) : (
@@ -469,7 +439,7 @@ export default function ProfilePage() {
         </div>
 
         {loading ? (
-          <div className="h-24 rounded animate-pulse" style={{ background: "var(--sl-surface-2)" }} />
+          <div className="skeleton-shimmer h-24 rounded" />
         ) : heatmap ? (
           <ActivityHeatmap data={heatmap.data} />
         ) : (
@@ -490,11 +460,13 @@ function StatTile({
   label,
   value,
   color,
+  loading = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   color: string;
+  loading?: boolean;
 }) {
   return (
     <div
@@ -507,9 +479,13 @@ function StatTile({
           {label}
         </span>
       </div>
-      <div className="text-xl font-bold font-mono" style={{ color }}>
-        {value}
-      </div>
+      {loading ? (
+        <div className="skeleton-shimmer h-6 w-16 rounded" />
+      ) : (
+        <div className="text-xl font-bold font-mono" style={{ color }}>
+          {value}
+        </div>
+      )}
     </div>
   );
 }
