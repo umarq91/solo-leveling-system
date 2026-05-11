@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useState, ReactNode } from "react";
 import { api, getToken, setToken, clearToken, User } from "./api";
 
 interface AuthContextType {
@@ -15,33 +15,59 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const USER_CACHE_KEY = "sl_user_cache";
+
+function readCachedUser(): User | null {
+  try { return JSON.parse(localStorage.getItem(USER_CACHE_KEY) ?? "null"); } catch { return null; }
+}
+
+function writeCachedUser(u: User | null) {
+  if (u) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(u));
+  else localStorage.removeItem(USER_CACHE_KEY);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function refreshUser() {
+  function _setUser(u: User | null) {
+    setUser(u);
+    writeCachedUser(u);
+  }
+
+  const refreshUser = useCallback(async () => {
     try {
       const data = await api.auth.me();
-      setUser(data.user);
+      _setUser(data.user);
     } catch {
       clearToken();
-      setUser(null);
+      _setUser(null);
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const token = getToken();
-    if (token) {
-      refreshUser().finally(() => setLoading(false));
-    } else {
+    if (!token) {
       setLoading(false);
+      return;
     }
-  }, []);
+    const cached = readCachedUser();
+    if (cached) {
+      // Show cached user immediately — no loading spinner
+      setUser(cached);
+      setLoading(false);
+      // Re-validate in background, silently update if changed
+      refreshUser();
+    } else {
+      refreshUser().finally(() => setLoading(false));
+    }
+  }, [refreshUser]);
 
   async function login(email: string, password: string) {
     const data = await api.auth.login({ email, password });
     setToken(data.token);
-    setUser(data.user);
+    _setUser(data.user);
   }
 
   async function register(username: string, email: string, password: string) {
@@ -50,11 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout() {
     clearToken();
-    setUser(null);
+    _setUser(null);
   }
 
   function updateUser(u: User) {
-    setUser(u);
+    _setUser(u);
   }
 
   return (

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import prisma from "../lib/prisma.js";
 import { AppError } from "../lib/errors.js";
 import { xpToNextLevel } from "../lib/xp.js";
+import { assignDailyQuests, assignWeeklyQuests } from "./quest.service.js";
 
 export async function registerUser(username: string, email: string, password: string) {
   const existing = await prisma.users.findFirst({
@@ -27,8 +28,16 @@ export async function registerUser(username: string, email: string, password: st
       total_xp: 0,
       streak_days: 0,
       up_to_next: xpToNextLevel(1),
+      last_active_at: new Date(),
     },
   });
+
+  // Assign initial quests — best-effort, registration always succeeds even if this fails
+  try {
+    await Promise.all([assignDailyQuests(user.id), assignWeeklyQuests(user.id)]);
+  } catch (err) {
+    console.error(`Initial quest assignment failed for user ${user.id}`, err);
+  }
 
   const { password: _, ...rest } = user;
   return rest;

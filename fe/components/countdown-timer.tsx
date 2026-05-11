@@ -58,6 +58,26 @@ function compute(target: number): CountdownState {
   return { d, h, m, s, totalMs, tone, color: TONE_COLORS[tone], text };
 }
 
+// Single shared 1-second tick — all useCountdown instances subscribe to this,
+// so N quest cards = 1 interval instead of N.
+type TickListener = () => void;
+const tickListeners = new Set<TickListener>();
+let sharedTicker: ReturnType<typeof setInterval> | null = null;
+
+function subscribeTick(fn: TickListener) {
+  tickListeners.add(fn);
+  if (!sharedTicker) {
+    sharedTicker = setInterval(() => tickListeners.forEach((cb) => cb()), 1000);
+  }
+  return () => {
+    tickListeners.delete(fn);
+    if (tickListeners.size === 0 && sharedTicker) {
+      clearInterval(sharedTicker);
+      sharedTicker = null;
+    }
+  };
+}
+
 export function useCountdown(expiresAt: string | null | undefined): CountdownState {
   const target = expiresAt ? new Date(expiresAt).getTime() : 0;
   const [state, setState] = useState<CountdownState>(() =>
@@ -70,8 +90,7 @@ export function useCountdown(expiresAt: string | null | undefined): CountdownSta
       return;
     }
     setState(compute(target));
-    const id = setInterval(() => setState(compute(target)), 1000);
-    return () => clearInterval(id);
+    return subscribeTick(() => setState(compute(target)));
   }, [target, expiresAt]);
 
   return state;

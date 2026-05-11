@@ -6,24 +6,41 @@ export async function getUserStats(userId: number) {
   const user = await prisma.users.findUnique({ where: { id: userId } });
   if (!user) throw new AppError(404, "User not found");
 
-  const [completedQuests, activeCount] = await Promise.all([
-    prisma.user_quests.findMany({
-      where: { user_id: userId, status: "COMPLETED" },
-      select: { quest: { select: { aspect: true } } },
-    }),
-    prisma.user_quests.count({
-      where: { user_id: userId, status: "ACTIVE" },
-    }),
-  ]);
+  const startOfWeek = new Date();
+  const dow = startOfWeek.getDay();
+  startOfWeek.setDate(startOfWeek.getDate() - (dow === 0 ? 6 : dow - 1));
+  startOfWeek.setHours(0, 0, 0, 0);
 
-  const completedByAspect = completedQuests.reduce(
-    (acc, uq) => {
-      const aspect = uq.quest.aspect;
-      acc[aspect] = (acc[aspect] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const [completedQuests, activeCount, failedCount, expiredCount, questsThisWeek] =
+    await Promise.all([
+      prisma.user_quests.findMany({
+        where: { user_id: userId, status: "COMPLETED" },
+        select: { quest: { select: { aspect: true, type: true, xp_reward: true } } },
+      }),
+      prisma.user_quests.count({ where: { user_id: userId, status: "ACTIVE" } }),
+      prisma.user_quests.count({ where: { user_id: userId, status: "FAILED" } }),
+      prisma.user_quests.count({ where: { user_id: userId, status: "EXPIRED" } }),
+      prisma.user_quests.count({
+        where: { user_id: userId, status: "COMPLETED", completed_at: { gte: startOfWeek } },
+      }),
+    ]);
+
+  const completedByAspect: Record<string, number> = {};
+  const xpByAspect: Record<string, number> = {};
+  const completedByType: Record<string, number> = {};
+
+  for (const uq of completedQuests) {
+    const { aspect, type, xp_reward } = uq.quest;
+    completedByAspect[aspect] = (completedByAspect[aspect] ?? 0) + 1;
+    xpByAspect[aspect] = (xpByAspect[aspect] ?? 0) + xp_reward;
+    completedByType[type] = (completedByType[type] ?? 0) + 1;
+  }
+
+  const completedTotal = completedQuests.length;
+  const attemptedTotal = completedTotal + failedCount + expiredCount;
+  const completionRate = attemptedTotal > 0
+    ? Math.round((completedTotal / attemptedTotal) * 100)
+    : null;
 
   const level = user.level ?? 1;
   const currentXp = user.current_xp ?? 0;
@@ -36,8 +53,14 @@ export async function getUserStats(userId: number) {
     user: userRest,
     xp_progress_pct: xpProgressPct,
     active_quests: activeCount,
-    completed_total: completedQuests.length,
+    completed_total: completedTotal,
     completed_by_aspect: completedByAspect,
+    xp_by_aspect: xpByAspect,
+    completed_by_type: completedByType,
+    total_failed: failedCount,
+    total_expired: expiredCount,
+    completion_rate: completionRate,
+    quests_this_week: questsThisWeek,
   };
 }
 

@@ -43,11 +43,47 @@ async function expireOverdueQuests(userId: number) {
 
 export async function getActiveQuests(userId: number) {
   await expireOverdueQuests(userId);
-  return prisma.user_quests.findMany({
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const startOfWeek = new Date();
+  const dayOfWeek = startOfWeek.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  startOfWeek.setDate(startOfWeek.getDate() + diffToMonday);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const [hasDailyToday, hasWeeklyThisWeek, dailyCompletedToday] = await Promise.all([
+    prisma.user_quests.count({
+      where: { user_id: userId, assigned_at: { gte: startOfDay }, quest: { type: "DAILY" } },
+    }),
+    prisma.user_quests.count({
+      where: { user_id: userId, assigned_at: { gte: startOfWeek }, quest: { type: "WEEKLY" } },
+    }),
+    prisma.user_quests.count({
+      where: {
+        user_id: userId,
+        status: "COMPLETED",
+        completed_at: { gte: startOfDay },
+        quest: { type: "DAILY" },
+      },
+    }),
+  ]);
+
+  if (!hasDailyToday) await assignDailyQuests(userId);
+  if (!hasWeeklyThisWeek) await assignWeeklyQuests(userId);
+
+  if (dailyCompletedToday >= DAILY_TRIGGER_THRESHOLD) {
+    await assignSideQuests(userId);
+  }
+
+  const quests = await prisma.user_quests.findMany({
     where: { user_id: userId, status: "ACTIVE" },
     include: { quest: true },
     orderBy: { assigned_at: "desc" },
   });
+
+  return { quests, daily_completed_today: dailyCompletedToday };
 }
 
 export async function getQuestsHistory(userId: number) {
@@ -332,6 +368,8 @@ export async function completeQuest(userId: number, userQuestId: number) {
         ? streakDays + 1
         : streakDays; // same day, don't increment again
 
+  const newBestStreak = Math.max(user.best_streak ?? 0, newStreak);
+
   const updatedUser = await prisma.users.update({
     where: { id: userId },
     data: {
@@ -341,6 +379,7 @@ export async function completeQuest(userId: number, userQuestId: number) {
       level,
       up_to_next: upToNext,
       streak_days: newStreak,
+      best_streak: newBestStreak,
       last_active_at: now,
     },
   });

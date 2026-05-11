@@ -1,5 +1,21 @@
 const BASE = "/api";
 
+// ── Simple TTL cache ───────────────────────────────────────────────────────
+const _cache = new Map<string, { data: unknown; expiresAt: number }>();
+
+function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = _cache.get(key);
+  if (hit && Date.now() < hit.expiresAt) return Promise.resolve(hit.data as T);
+  return fn().then((data) => {
+    _cache.set(key, { data, expiresAt: Date.now() + ttlMs });
+    return data;
+  });
+}
+
+export function invalidateCache(...keys: string[]) {
+  keys.forEach((k) => _cache.delete(k));
+}
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("sl_token");
@@ -43,25 +59,22 @@ export const api = {
     me: () => request<{ user: User }>("/auth/me"),
   },
   users: {
-    stats: () => request<StatsResponse>("/users/stats"),
-    heatmap: (days = 90) => request<HeatmapResponse>(`/users/heatmap?days=${days}`),
+    stats: () => cached("stats", 30_000, () => request<StatsResponse>("/users/stats")),
+    heatmap: (days = 90) =>
+      cached(`heatmap-${days}`, 5 * 60_000, () =>
+        request<HeatmapResponse>(`/users/heatmap?days=${days}`)
+      ),
   },
   quests: {
-    active: () => request<{ quests: UserQuest[] }>("/quests"),
-    history: () => request<{ quests: UserQuest[] }>("/quests/history"),
-    assignDaily: () =>
-      request<{ assigned: UserQuest[]; message: string }>("/quests/daily", {
-        method: "POST",
-      }),
-    assignWeekly: () =>
-      request<{ assigned: UserQuest[]; message: string }>("/quests/weekly", {
-        method: "POST",
-      }),
-    assignSide: () =>
-      request<SideQuestResponse>("/quests/side", { method: "POST" }),
+    active: () =>
+      cached("quests-active", 15_000, () =>
+        request<{ quests: UserQuest[]; daily_completed_today: number }>("/quests")
+      ),
+    history: () => cached("quests-history", 60_000, () => request<{ quests: UserQuest[] }>("/quests/history")),
     complete: (userQuestId: number) =>
-      request<CompleteQuestResponse>(`/quests/${userQuestId}/complete`, {
-        method: "POST",
+      request<CompleteQuestResponse>(`/quests/${userQuestId}/complete`, { method: "POST" }).then((r) => {
+        invalidateCache("quests-active", "stats", "heatmap-90");
+        return r;
       }),
   },
 };
@@ -83,6 +96,7 @@ export interface User {
   total_xp: number;
   up_to_next: number;
   streak_days: number;
+  best_streak: number;
   last_active_at: string | null;
   created_at: string;
 }
@@ -115,6 +129,12 @@ export interface StatsResponse {
   active_quests: number;
   completed_total: number;
   completed_by_aspect: Partial<Record<Aspect, number>>;
+  xp_by_aspect: Partial<Record<Aspect, number>>;
+  completed_by_type: Partial<Record<QuestType, number>>;
+  total_failed: number;
+  total_expired: number;
+  completion_rate: number | null;
+  quests_this_week: number;
 }
 
 export interface HeatmapDay {
@@ -131,12 +151,6 @@ export interface HeatmapResponse {
     xp: number;
     active_days: number;
   };
-}
-
-export interface SideQuestResponse {
-  assigned: UserQuest[];
-  message: string;
-  slots: { active: number; max: number };
 }
 
 export interface CompleteQuestResponse {

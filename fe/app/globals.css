@@ -4,7 +4,6 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-orbitron: var(--font-orbitron);
-  --font-display: var(--font-instrument);
 }
 
 :root {
@@ -108,8 +107,29 @@ body {
 }
 
 @keyframes urgent-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.78; transform: scale(1.015); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.72; }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -300% 0; }
+  100% { background-position: 300% 0; }
+}
+
+@keyframes quest-complete-out {
+  0%   { opacity: 1; transform: translateX(0) scale(1); }
+  25%  { opacity: 1; transform: translateX(-3px) scale(1.008); }
+  100% { opacity: 0; transform: translateX(48px) scale(0.96); }
+}
+
+@keyframes accent-bar-glow {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+@keyframes skeleton-accent-pulse {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 0.65; }
 }
 
 /* ── Base components ── */
@@ -139,7 +159,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
   border: 1px solid transparent;
 }
 
@@ -251,6 +271,27 @@ body {
 .aspect-intellect  { color: #60a5fa; }
 .aspect-social     { color: #fbbf24; }
 
+/* ── Skeleton shimmer ── */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--sl-surface) 0%,
+    var(--sl-border-bright) 35%,
+    rgba(0, 212, 255, 0.18) 50%,
+    var(--sl-border-bright) 65%,
+    var(--sl-surface) 100%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-shimmer 2.2s ease-in-out infinite;
+}
+
+/* ── Quest complete exit ── */
+.quest-completing-out {
+  animation: quest-complete-out 0.38s cubic-bezier(0.4, 0, 0.8, 0.6) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 /* ── Quest card ── */
 .quest-card {
   background: var(--sl-surface);
@@ -267,7 +308,17 @@ body {
   left: 0; top: 0; bottom: 0;
   width: 3px;
   background: var(--accent-color, var(--sl-cyan));
-  opacity: 0.8;
+  opacity: 0.75;
+  transition: box-shadow 0.3s, opacity 0.3s;
+}
+
+.quest-card-active::before {
+  animation: accent-bar-glow 2.8s ease-in-out infinite;
+}
+
+.quest-card-skeleton::before {
+  background: var(--sl-cyan);
+  animation: skeleton-accent-pulse 2.2s ease-in-out infinite;
 }
 
 .quest-card:hover {
@@ -330,7 +381,6 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(4px);
   z-index: 50;
   display: flex;
   align-items: center;

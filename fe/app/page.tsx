@@ -16,7 +16,7 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 const HLS_SRC = "https://stream.mux.com/Aa02T7oM1wH5Mk5EEVDYhbZ1ChcdhRsS2m1NYyx4Ua1g.m3u8";
 const HERO_ROLES = ["Hunter", "Warrior", "Champion", "Monarch"];
-const LOADING_WORDS = ["Arise", "Hunt", "Ascend", "Grind"];
+const LOADING_WORDS = ["Arise", "Hunt", "Ascend", ""];
 
 const QUESTS = [
   {
@@ -1376,7 +1376,7 @@ function StatsSection() {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-const MARQUEE_TEXT = "ARISE  ·  HUNT  ·  ASCEND  ·  GRIND  ·  ";
+const MARQUEE_TEXT = "ARISE  ·  HUNT  ·  ASCEND  ·   ·  ";
 
 function SiteFooter() {
   const footerRef = useRef<HTMLElement>(null);

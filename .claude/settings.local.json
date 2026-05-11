@@ -19,7 +19,9 @@
       "Bash(git clone *)",
       "Bash(npm --version)",
       "Bash(uipro init *)",
-      "Bash(npm i *)"
+      "Bash(npm i *)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_o6fJismnPAp5@ep-quiet-tree-amej5piy-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx prisma *)",
+      "Bash(xargs cat -n)"
     ]
   }
 }

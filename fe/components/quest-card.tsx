@@ -10,6 +10,7 @@ interface Props {
   userQuest: UserQuest;
   onComplete?: (id: number) => void;
   completing?: boolean;
+  fadingOut?: boolean;
 }
 
 const STATUS_CONFIG = {
@@ -19,22 +20,29 @@ const STATUS_CONFIG = {
   EXPIRED: { icon: Timer, color: "#6b7280", label: "EXPIRED" },
 };
 
-export default function QuestCard({ userQuest, onComplete, completing }: Props) {
+export default function QuestCard({ userQuest, onComplete, completing, fadingOut }: Props) {
   const { quest, status, expires_at } = userQuest;
   const accentColor = ASPECT_COLORS[quest.aspect];
   const statusCfg = STATUS_CONFIG[status];
   const { tone, totalMs } = useCountdown(status === "ACTIVE" ? expires_at : null);
   const isUrgent = status === "ACTIVE" && tone === "urgent" && totalMs > 0;
+  const isActive = status === "ACTIVE" && !!onComplete;
   const URGENT_RED = "#f87171";
+
+  const cardClass = [
+    "quest-card p-4 pl-6",
+    isActive && !isUrgent ? "quest-card-active" : "",
+    fadingOut ? "quest-completing-out" : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <div
-      className="quest-card p-4 pl-6"
+      className={cardClass}
       style={{
         "--accent-color": isUrgent ? URGENT_RED : accentColor,
         borderColor: isUrgent ? `${URGENT_RED}66` : undefined,
         boxShadow: isUrgent ? `0 0 22px ${URGENT_RED}33` : undefined,
-        animation: isUrgent ? "urgent-pulse 1.6s ease-in-out infinite" : undefined,
+        animation: fadingOut ? undefined : isUrgent ? "urgent-pulse 1.6s ease-in-out infinite" : undefined,
       } as React.CSSProperties}
     >
       {/* Header row */}

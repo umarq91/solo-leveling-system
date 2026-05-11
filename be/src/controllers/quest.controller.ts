@@ -12,7 +12,7 @@ function handleError(res: Response, error: unknown) {
 export async function getMyQuests(req: Request, res: Response) {
   try {
     const result = await questService.getActiveQuests(req.user.id);
-    return res.json({ quests: result });
+    return res.json(result);
   } catch (error) {
     return handleError(res, error);
   }
@@ -22,47 +22,6 @@ export async function getQuestsHistory(req: Request, res: Response) {
   try {
     const quests = await questService.getQuestsHistory(req.user.id);
     return res.json({ quests });
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
-export async function assignQuest(req: Request, res: Response) {
-  try {
-    const questId = parseInt(req.params.questId as string, 10);
-    if (isNaN(questId)) {
-      return res.status(400).json({ message: "Invalid quest id" });
-    }
-    const userQuest = await questService.assignQuest(req.user.id, questId);
-    return res.status(201).json({ userQuest });
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
-
-export async function assignSideQuests(req: Request, res: Response) {
-  try {
-    const result = await questService.assignSideQuests(req.user.id);
-    return res.status(201).json(result);
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
-export async function assignDailyQuests(req: Request, res: Response) {
-  try {
-    const result = await questService.assignDailyQuests(req.user.id);
-    return res.status(201).json(result);
-  } catch (error) {
-    return handleError(res, error);
-  }
-}
-
-export async function assignWeeklyQuests(req: Request, res: Response) {
-  try {
-    const result = await questService.assignWeeklyQuests(req.user.id);
-    return res.status(201).json(result);
   } catch (error) {
     return handleError(res, error);
   }

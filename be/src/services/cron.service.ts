@@ -70,7 +70,7 @@ export async function runNightlyCron() {
   const cutOff = new Date(Date.now() - 7 * (1000 * 60 * 60 * 24));
   const users = await prisma.users.findMany({
     where: {
-      last_active_at: { gte: cutOff },
+      OR: [{ last_active_at: { gte: cutOff } }, { last_active_at: null }],
     },
     select: {
       id: true,
@@ -108,7 +108,9 @@ export async function runNightlyCron() {
 export async function runWeeklyCron() {
   const cutOff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const users = await prisma.users.findMany({
-    where: { last_active_at: { gte: cutOff } },
+    where: {
+      OR: [{ last_active_at: { gte: cutOff } }, { last_active_at: null }],
+    },
     select: { id: true },
   });
 

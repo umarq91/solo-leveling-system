@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { UserQuest, ASPECT_COLORS, ASPECT_LABELS } from "@/lib/api";
 import { Zap } from "lucide-react";
 
@@ -15,14 +16,24 @@ export default function SideQuestTriggeredModal({ quest, onClose }: Props) {
   const aspectColor = ASPECT_COLORS[q.aspect];
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
+    <motion.div
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      onClick={onClose}
+    >
+      <motion.div
         className="relative max-w-sm w-full mx-4 p-8 rounded-lg text-center"
+        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
         style={{
           background: "linear-gradient(135deg, #0a0b18 0%, #130d08 100%)",
           border: `1px solid ${SIDE_COLOR}88`,
           boxShadow: `0 0 60px ${SIDE_COLOR}30, 0 0 120px ${SIDE_COLOR}12, 0 20px 60px rgba(0,0,0,0.8)`,
-          animation: "level-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -113,7 +124,7 @@ export default function SideQuestTriggeredModal({ quest, onClose }: Props) {
           <Zap size={13} />
           ACCEPT MISSION
         </button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

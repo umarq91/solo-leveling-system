@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api, StatsResponse, HeatmapResponse, ASPECT_LABELS, ASPECT_COLORS, RANK_COLORS, Aspect } from "@/lib/api";
+import dynamic from "next/dynamic";
 import XpBar from "@/components/xp-bar";
 import RankBadge from "@/components/rank-badge";
-import ActivityHeatmap from "@/components/activity-heatmap";
+const ActivityHeatmap = dynamic(() => import("@/components/activity-heatmap"), { ssr: false });
 import { Flame, Zap, Shield, CheckCircle, TrendingUp, Activity, CalendarDays } from "lucide-react";
 
 const ASPECTS: Aspect[] = ["FITNESS", "DESCIPLINE", "CAREER", "INTELLECT", "SOCIAL"];

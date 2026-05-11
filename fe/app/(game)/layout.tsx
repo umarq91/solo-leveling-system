@@ -6,11 +6,12 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import XpBar from "@/components/xp-bar";
 import RankBadge from "@/components/rank-badge";
-import { LayoutDashboard, Swords, LogOut, Flame, Zap } from "lucide-react";
+import { LayoutDashboard, Swords, LogOut, Flame, Zap, User } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/quests", label: "Quests", icon: Swords },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export default function GameLayout({ children }: { children: React.ReactNode }) {
